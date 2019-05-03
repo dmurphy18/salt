@@ -2,6 +2,7 @@
 # cloud.profiles.d/ directory. The format for this file, and all files in that
 # directory, is identical.
 
+
 #base_ec2:
 #  provider: my-ec2-config
 #  image: ami-e565ba8c

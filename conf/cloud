@@ -1,6 +1,5 @@
 # This file should normally be installed at: /etc/salt/cloud
 
-
 ##########################################
 #####          VM Defaults           #####
 ##########################################

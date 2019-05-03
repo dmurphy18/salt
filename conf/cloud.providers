@@ -2,6 +2,7 @@
 # cloud.providers.d/ directory. The format for this file, and all files in that
 # directory is identical.
 
+
 #my-digitalocean-config:
 #  driver: digitalocean
 #  client_key: wFGEwgregeqw3435gDger
