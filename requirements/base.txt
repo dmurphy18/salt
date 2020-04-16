@@ -1,5 +1,9 @@
 Jinja2
-msgpack>=0.5,!=0.5.5,<1.0.0
+
+## msgpack>=0.5,!=0.5.5,<1.0.0
+# Debian 10 has msgpack 1.0.0, had to adjust Salt and it was the beta 1.0.0 had issues 
+msgpack > 0.5.5
+
 PyYAML
 MarkupSafe
 requests>=1.0.0
