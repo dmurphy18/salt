@@ -2588,6 +2588,7 @@ class Minion(MinionBase):
             uid = salt.utils.user.get_uid(user=self.opts.get('user', None))
             self.proc_dir = get_proc_dir(self.opts['cachedir'], uid=uid)
             self.grains_cache = self.opts['grains']
+
             self.ready = True
 
     def setup_beacons(self, before_connect=False):

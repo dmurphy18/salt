@@ -411,8 +411,8 @@ class ProxyMinion(salt.utils.parsers.ProxyMinionOptionParser, DaemonsMixin):  # 
         '''
         super(ProxyMinion, self).prepare()
 
-        if not self.values.proxyid:
-            self.error('salt-proxy requires --proxyid')
+        # if not self.values.proxyid:
+        #     self.error('salt-proxy requires --proxyid')
 
         # Proxies get their ID from the command line.  This may need to change in
         # the future.

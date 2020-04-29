@@ -10,7 +10,12 @@ import signal
 import logging
 import weakref
 import traceback
-import collections
+
+try:
+    from collections.abc import MutableMapping, Mapping
+except ImportError:
+    from collections import MutableMapping, Mapping
+
 import copy as pycopy
 
 # Import Salt libs
@@ -55,7 +60,7 @@ CLIENT_INTERNAL_KEYWORDS = frozenset([
 ])
 
 
-class ClientFuncsDict(collections.MutableMapping):
+class ClientFuncsDict(MutableMapping):
     '''
     Class to make a read-only dict for accessing runner funcs "directly"
     '''
@@ -141,7 +146,7 @@ class SyncClientMixin(object):
                                                       crypt='clear',
                                                       usage='master_call') as channel:
             ret = channel.send(load)
-            if isinstance(ret, collections.Mapping):
+            if isinstance(ret, Mapping):
                 if 'error' in ret:
                     salt.utils.error.raise_error(**ret['error'])
             return ret

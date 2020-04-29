@@ -24,6 +24,8 @@ from errno import EACCES, EPERM
 import datetime
 import warnings
 import time
+import hashlib
+import subprocess
 
 # pylint: disable=import-error
 try:
@@ -38,7 +40,7 @@ __FQDN__ = None
 # Extend the default list of supported distros. This will be used for the
 # /etc/DISTRO-release checking that is part of linux_distribution()
 from platform import _supported_dists
-_supported_dists += ('arch', 'mageia', 'meego', 'vmware', 'bluewhite64',
+_supported_dists += ('arch', 'junos', 'mageia', 'meego', 'vmware', 'bluewhite64',
                      'slamd64', 'ovs', 'system', 'mint', 'oracle', 'void')
 
 # linux_distribution deprecated in py3.7
@@ -108,6 +110,23 @@ _INTERFACES = {}
 HOST_NOT_FOUND = 1
 NO_DATA = 4
 
+
+def _parse_junos_showver(txt):
+    showver = {}
+    for l in txt.splitlines():
+        decoded_line = l.decode('utf-8')
+        if decoded_line.startswith('Model'):
+            showver['model'] = decoded_line.split(' ')[1]
+        if decoded_line.startswith('Junos'):
+            showver['osrelease'] = decoded_line.split(' ')[1]
+            showver['osmajorrelease'] = decoded_line.split('.')[0]
+            showver['osrelease_info'] = decoded_line.split('.')
+        if decoded_line.startswith('JUNOS OS Kernel'):
+            showver['kernelversion'] = decoded_line
+            relno = re.search(r'\[(.*)\]', decoded_line)
+            if relno:
+                showver['kernelrelease'] = relno.group(1)
+    return showver
 
 def _windows_cpudata():
     '''
@@ -1417,6 +1436,7 @@ _OS_NAME_MAP = {
     'archarm': 'Arch ARM',
     'arch': 'Arch',
     'debian': 'Debian',
+    'Junos': 'Junos',
     'raspbian': 'Raspbian',
     'fedoraremi': 'Fedora',
     'chapeau': 'Chapeau',
@@ -1661,7 +1681,15 @@ def os_data():
      grains['kernelrelease'], grains['kernelversion'], grains['cpuarch'], _) = platform.uname()
     # pylint: enable=unpacking-non-sequence
 
-    if salt.utils.platform.is_proxy():
+    if salt.utils.platform.is_junos():
+        grains['kernel'] = 'Junos'
+        grains['osfullname'] = 'Junos'
+        grains['os'] = 'Junos'
+        grains['os_family'] = 'FreeBSD'
+        showver = _parse_junos_showver(
+            subprocess.run(['/usr/sbin/cli','show', 'version'], stdout=subprocess.PIPE).stdout)
+        grains.update(showver)
+    elif salt.utils.platform.is_proxy():
         grains['kernel'] = 'proxy'
         grains['kernelrelease'] = 'proxy'
         grains['kernelversion'] = 'proxy'
@@ -2792,20 +2820,15 @@ def get_server_id():
     # Provides:
     #   server_id
 
-    if salt.utils.platform.is_proxy():
-        return {}
     id_ = __opts__.get('id', '')
     id_hash = None
     py_ver = sys.version_info[:2]
     if py_ver >= (3, 3):
         # Python 3.3 enabled hash randomization, so we need to shell out to get
         # a reliable hash.
-        id_hash = __salt__['cmd.run'](
-            [sys.executable, '-c', 'print(hash("{0}"))'.format(id_)],
-            env={'PYTHONHASHSEED': '0'}
-        )
         try:
-            id_hash = int(id_hash)
+            # Use 'big' here because that is typical ordering for network protocols
+            id_hash = int.from_bytes(hashlib.sha256(id_.encode()).digest(), byteorder='big')
         except (TypeError, ValueError):
             log.debug(
                 'Failed to hash the ID to get the server_id grain. Result of '

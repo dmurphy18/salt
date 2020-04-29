@@ -20,7 +20,13 @@ import sys
 import os.path
 import logging
 
-__PLATFORM = sys.platform.lower()
+import salt.utils.platform
+
+if salt.utils.platform.is_junos():
+    __PLATFORM = 'junos'
+else:
+    __PLATFORM = sys.platform.lower()
+
 typo_warning = True
 log = logging.getLogger(__name__)
 EXPECTED_VARIABLES = ('ROOT_DIR', 'CONFIG_DIR', 'CACHE_DIR', 'SOCK_DIR',
@@ -82,8 +88,10 @@ if CONFIG_DIR is None:
         CONFIG_DIR = os.path.join(ROOT_DIR, 'usr', 'pkg', 'etc', 'salt')
     elif 'sunos5' in __PLATFORM:
         CONFIG_DIR = os.path.join(ROOT_DIR, 'opt', 'local', 'etc', 'salt')
+    elif 'junos' in __PLATFORM:
+        CONFIG_DIR = os.path.join(ROOT_DIR, 'var','local','salt','etc')
     else:
-        CONFIG_DIR = os.path.join(ROOT_DIR, 'etc', 'salt')
+        CONFIG_DIR = os.path.join(ROOT_DIR, 'etc','salt')
 
 SHARE_DIR = __generated_syspaths.SHARE_DIR
 if SHARE_DIR is None:
@@ -95,16 +103,24 @@ if SHARE_DIR is None:
         SHARE_DIR = os.path.join(ROOT_DIR, 'usr', 'share', 'salt')
     elif 'sunos5' in __PLATFORM:
         SHARE_DIR = os.path.join(ROOT_DIR, 'usr', 'share', 'salt')
+    elif 'junos' in __PLATFORM:
+        SHARE_DIR = os.path.join(ROOT_DIR, 'var','local','salt','share')
     else:
         SHARE_DIR = os.path.join(ROOT_DIR, 'usr', 'share', 'salt')
 
 CACHE_DIR = __generated_syspaths.CACHE_DIR
 if CACHE_DIR is None:
-    CACHE_DIR = os.path.join(ROOT_DIR, 'var', 'cache', 'salt')
+    if 'junos' in __PLATFORM:
+        CACHE_DIR = os.path.join(ROOT_DIR, 'var','local','salt','cache')
+    else:
+        CACHE_DIR = os.path.join(ROOT_DIR, 'var', 'cache', 'salt')
 
 SOCK_DIR = __generated_syspaths.SOCK_DIR
 if SOCK_DIR is None:
-    SOCK_DIR = os.path.join(ROOT_DIR, 'var', 'run', 'salt')
+    if 'junos' in __PLATFORM:
+        SOCK_DIR = os.path.join(ROOT_DIR, 'var','local','salt','run')
+    else:
+        SOCK_DIR = os.path.join(ROOT_DIR, 'var', 'run', 'salt')
 
 SRV_ROOT_DIR = __generated_syspaths.SRV_ROOT_DIR
 if SRV_ROOT_DIR is None:
@@ -132,7 +148,10 @@ if LOGS_DIR is None:
 
 PIDFILE_DIR = __generated_syspaths.PIDFILE_DIR
 if PIDFILE_DIR is None:
-    PIDFILE_DIR = os.path.join(ROOT_DIR, 'var', 'run')
+    if 'junos' in __PLATFORM:
+        PIDFILE_DIR = os.path.join(ROOT_DIR, 'var','local','salt','run')
+    else:
+        PIDFILE_DIR = os.path.join(ROOT_DIR, 'var', 'run', 'salt')
 
 SPM_PARENT_PATH = __generated_syspaths.SPM_PARENT_PATH
 if SPM_PARENT_PATH is None:

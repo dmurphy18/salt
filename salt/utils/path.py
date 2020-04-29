@@ -306,6 +306,7 @@ def which_bin(exes):
     '''
     if not isinstance(exes, Iterable):
         return None
+
     for exe in exes:
         path = which(exe)
         if not path:

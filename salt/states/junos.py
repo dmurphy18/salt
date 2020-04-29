@@ -40,8 +40,7 @@ def rpc(name, dest=None, format='xml', args=None, **kwargs):
     .. code-block:: yaml
 
         get-interface-information:
-            junos:
-              - rpc
+            junos.rpc:
               - dest: /home/user/rpc.log
               - interface_name: lo0
 
@@ -91,14 +90,13 @@ def set_hostname(name, **kwargs):
     .. code-block:: yaml
 
             device_name:
-              junos:
-                - set_hostname
+              junos.set_hostname:
                 - comment: "Host-name set via saltstack."
 
 
     Parameters:
      Required
-        * hostname: The name to be set. (default = None)
+        * name: The hostname to be set. (default = None)
      Optional
         * kwargs: Keyworded arguments which can be provided like-
             * timeout:
@@ -125,8 +123,7 @@ def commit(name, **kwargs):
     .. code-block:: yaml
 
             commit the changes:
-              junos:
-                - commit
+              junos.commit:
                 - confirm: 10
 
 
@@ -162,21 +159,22 @@ def commit(name, **kwargs):
 
 
 @resultdecorator
-def rollback(name, id, **kwargs):
+def rollback(name, d_id, **kwargs):
     '''
     Rollbacks the committed changes.
 
     .. code-block:: yaml
 
             rollback the changes:
-              junos:
-                - rollback
-                - id: 5
+              junos.rollback:
+                - 5
 
     Parameters:
       Optional
-        * id:
+        * d_id:
           The rollback id value [0-49]. (default = 0)
+          (this variable cannot be named `id`, it conflicts
+          with the state compiler's internal id)
         * kwargs: Keyworded arguments which can be provided like-
             * timeout:
               Set NETCONF RPC timeout. Can be used for commands which
@@ -192,7 +190,7 @@ def rollback(name, id, **kwargs):
 
     '''
     ret = {'name': name, 'changes': {}, 'result': True, 'comment': ''}
-    ret['changes'] = __salt__['junos.rollback'](id, **kwargs)
+    ret['changes'] = __salt__['junos.rollback'](id=d_id, **kwargs)
     return ret
 
 
@@ -204,14 +202,15 @@ def diff(name, d_id):
     .. code-block:: yaml
 
             get the diff:
-              junos:
-                - diff
-                - id: 10
+              junos.diff:
+                - 10
 
     Parameters:
       Optional
-        * id:
+        id, positional :
           The rollback id value [0-49]. (default = 0)
+          (this variable cannot be named `id`, it conflicts with the
+          state compiler's internal id)
     '''
     ret = {'name': name, 'changes': {}, 'result': True, 'comment': ''}
     ret['changes'] = __salt__['junos.diff'](d_id)
@@ -226,8 +225,7 @@ def cli(name, **kwargs):
     .. code-block:: yaml
 
             show version:
-              junos:
-                - cli
+              junos.cli:
                 - format: xml
 
     Parameters:
@@ -259,8 +257,7 @@ def shutdown(name, **kwargs):
     .. code-block:: yaml
 
             shut the device:
-              junos:
-                - shutdown
+              junos.shutdown:
                 - in_min: 10
 
     Parameters:
@@ -286,19 +283,16 @@ def install_config(name, **kwargs):
     .. code-block:: yaml
 
             Install the mentioned config:
-              junos:
-                - install_config
-                - path: salt//configs/interface.set
+              junos.install_config:
+                - name: salt://configs/interface.set
                 - timeout: 100
                 - diffs_file: 'var/log/diff'
 
 
     .. code-block:: yaml
 
-            Install the mentioned config:
-              junos:
-                - install_config
-                - template_path: salt//configs/interface.set
+            salt://configs/interface.set:
+              junos.install_config:
                 - timeout: 100
                 - template_vars:
                     interface_name: lo0
@@ -376,14 +370,13 @@ def install_os(name, **kwargs):
     .. code-block:: yaml
 
             salt://images/junos_image.tgz:
-              junos:
-                - install_os
+              junos.install_os:
                 - timeout: 100
                 - reboot: True
 
     Parameters:
       Required
-        * path:
+        * name:
           Path where the image file is present on the pro\
           xy minion.
       Optional
@@ -411,14 +404,13 @@ def file_copy(name, dest=None, **kwargs):
     .. code-block:: yaml
 
             /home/m2/info.txt:
-              junos:
-                - file_copy
+              junos.file_copy:
                 - dest: info_copy.txt
 
     Parameters:
       Required
-        * src:
-          The sorce path where the file is kept.
+        * name:
+          The source path where the file is kept.
         * dest:
           The destination path where the file will be copied.
     '''
@@ -473,16 +465,13 @@ def load(name, **kwargs):
     .. code-block:: yaml
 
             Install the mentioned config:
-              junos:
-                - load
-                - path: salt//configs/interface.set
+              junos.load:
+                - name: salt://configs/interface.set
 
     .. code-block:: yaml
 
-            Install the mentioned config:
-              junos:
-                - load
-                - template_path: salt//configs/interface.set
+            salt://configs/interface.set:
+              junos.load:
                 - template_vars:
                     interface_name: lo0
                     description: Creating interface via SaltStack.

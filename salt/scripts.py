@@ -75,7 +75,9 @@ def _handle_signals(client, signum, sigframe):
     _handle_interrupt(
         SystemExit(exit_msg),
         Exception('\nExiting with hard crash on Ctrl-c'),
-        hardcrash, trace=trace)
+        hardcrash,
+        trace=trace,
+    )
 
 
 def _install_signal_handlers(client):
@@ -154,17 +156,19 @@ def minion_process():
 
     try:
         if not salt.utils.platform.is_windows():
-            thread = threading.Thread(target=suicide_when_without_parent, args=(os.getppid(),))
+            thread = threading.Thread(
+                target=suicide_when_without_parent, args=(os.getppid(),)
+            )
             thread.start()
 
         minion = salt.cli.daemons.Minion()
-        signal.signal(signal.SIGHUP,
-                      functools.partial(handle_hup,
-                                        minion))
+        signal.signal(signal.SIGHUP, functools.partial(handle_hup, minion))
         minion.start()
     except (SaltClientError, SaltReqTimeoutError, SaltSystemExit) as exc:
         lock.acquire(blocking=True)
-        log.warning('Fatal functionality error caught by minion handler:\n', exc_info=True)
+        log.warning(
+            'Fatal functionality error caught by minion handler:\n', exc_info=True
+        )
         log.warning('** Restarting minion **')
         delay = 60
         if minion is not None and hasattr(minion, 'config'):
@@ -236,15 +240,18 @@ def salt_minion():
         try:
             process = multiprocessing.Process(target=minion_process)
             process.start()
-            signal.signal(signal.SIGTERM,
-                          functools.partial(escalate_signal_to_process,
-                                            process.pid))
-            signal.signal(signal.SIGINT,
-                          functools.partial(escalate_signal_to_process,
-                                            process.pid))
-            signal.signal(signal.SIGHUP,
-                          functools.partial(escalate_signal_to_process,
-                                            process.pid))
+            signal.signal(
+                signal.SIGTERM,
+                functools.partial(escalate_signal_to_process, process.pid),
+            )
+            signal.signal(
+                signal.SIGINT,
+                functools.partial(escalate_signal_to_process, process.pid),
+            )
+            signal.signal(
+                signal.SIGHUP,
+                functools.partial(escalate_signal_to_process, process.pid),
+            )
         except Exception:  # pylint: disable=broad-except
             # if multiprocessing does not work
             minion = salt.cli.daemons.Minion()
@@ -278,6 +285,7 @@ def proxy_minion_process(queue):
     '''
     import salt.cli.daemons
     import salt.utils.platform
+
     # salt_minion spawns this function in a new process
 
     lock = threading.RLock()
@@ -302,7 +310,9 @@ def proxy_minion_process(queue):
 
     try:
         if not salt.utils.platform.is_windows():
-            thread = threading.Thread(target=suicide_when_without_parent, args=(os.getppid(),))
+            thread = threading.Thread(
+                target=suicide_when_without_parent, args=(os.getppid(),)
+            )
             thread.start()
 
         restart = False
@@ -343,6 +353,7 @@ def salt_proxy():
     import salt.cli.daemons
     import salt.utils.platform
     import multiprocessing
+
     if '' in sys.path:
         sys.path.remove('')
 
@@ -397,9 +408,11 @@ def salt_syndic():
     Start the salt syndic.
     '''
     import salt.utils.process
+
     salt.utils.process.notify_systemd()
 
     import salt.cli.daemons
+
     pid = os.getpid()
     try:
         syndic = salt.cli.daemons.Syndic()
@@ -413,12 +426,13 @@ def salt_key():
     Manage the authentication keys with salt-key.
     '''
     import salt.cli.key
+
     try:
         client = salt.cli.key.SaltKey()
         _install_signal_handlers(client)
         client.run()
     except Exception as err:  # pylint: disable=broad-except
-        sys.stderr.write("Error: {0}\n".format(err))
+        sys.stderr.write('Error: {0}\n'.format(err))
 
 
 def salt_cp():
@@ -427,6 +441,7 @@ def salt_cp():
     master.
     '''
     import salt.cli.cp
+
     client = salt.cli.cp.SaltCPCli()
     _install_signal_handlers(client)
     client.run()
@@ -438,6 +453,7 @@ def salt_call():
     salt minion to run.
     '''
     import salt.cli.call
+
     if '' in sys.path:
         sys.path.remove('')
     client = salt.cli.call.SaltCall()
@@ -450,6 +466,7 @@ def salt_run():
     Execute a salt convenience routine.
     '''
     import salt.cli.run
+
     if '' in sys.path:
         sys.path.remove('')
     client = salt.cli.run.SaltRun()
@@ -462,6 +479,7 @@ def salt_ssh():
     Execute the salt-ssh system
     '''
     import salt.cli.ssh
+
     if '' in sys.path:
         sys.path.remove('')
     try:
@@ -474,10 +492,7 @@ def salt_ssh():
             hardcrash = client.options.hard_crash
         except (AttributeError, KeyError):
             hardcrash = False
-        _handle_interrupt(
-            SystemExit(err),
-            err,
-            hardcrash, trace=trace)
+        _handle_interrupt(SystemExit(err), err, hardcrash, trace=trace)
 
 
 def salt_cloud():
@@ -579,3 +594,8 @@ def salt_unity():
         sys.argv.pop(1)
         s_fun = getattr(sys.modules[__name__], 'salt_{0}'.format(cmd))
     s_fun()
+
+
+def salt_shell():
+    from ptpython.repl import embed
+    embed(globals(), locals(), vi_mode=False)

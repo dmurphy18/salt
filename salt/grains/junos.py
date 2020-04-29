@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
 Grains for junos.
-NOTE this is a little complicated--junos can only be accessed
-via salt-proxy-minion.Thus, some grains make sense to get them
-from the minion (PYTHONPATH), but others don't (ip_interfaces)
 '''
 
 # Import Python libs
@@ -13,7 +10,6 @@ import logging
 # Import Salt libs
 from salt.ext import six
 
-__proxyenabled__ = ['junos']
 __virtualname__ = 'junos'
 
 # Get looging started
@@ -29,7 +25,7 @@ def __virtual__():
 
 def _remove_complex_types(dictionary):
     '''
-    Linode-python is now returning some complex types that
+    junos-eznc is now returning some complex types that
     are not serializable by msgpack.  Kill those.
     '''
     for k, v in six.iteritems(dictionary):
@@ -42,12 +38,12 @@ def _remove_complex_types(dictionary):
 
 
 def defaults():
-    return {'os': 'proxy', 'kernel': 'unknown', 'osrelease': 'proxy'}
+    return {'os': 'junos FIXME', 'kernel': 'junos FIXME', 'osrelease': 'junos FIXME', 'kernel':'junos FIXME'}
 
 
 def facts(proxy=None):
-    if proxy is None or proxy['junos.initialized']() is False:
-        return {}
+    if proxy is None:
+        return __proxy__['junos.get_serialized_facts']()
     return {'junos_facts': proxy['junos.get_serialized_facts']()}
 
 

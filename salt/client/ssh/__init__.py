@@ -47,7 +47,7 @@ import salt.utils.stringutils
 import salt.utils.thin
 import salt.utils.url
 import salt.utils.verify
-from salt.utils.platform import is_windows
+from salt.utils.platform import is_windows, is_junos
 from salt.utils.process import Process
 import salt.roster
 from salt.template import compile_template
@@ -186,13 +186,15 @@ EOF'''.format(
             EX_THIN_PYTHON_INVALID=salt.defaults.exitcodes.EX_THIN_PYTHON_INVALID,
             ).split('\n')])
 
-if not is_windows():
+if not is_windows() and not is_junos():
     shim_file = os.path.join(os.path.dirname(__file__), 'ssh_py_shim.py')
     if not os.path.exists(shim_file):
         # On esky builds we only have the .pyc file
         shim_file += 'c'
     with salt.utils.files.fopen(shim_file) as ssh_py_shim:
         SSH_PY_SHIM = ssh_py_shim.read()
+else:
+    SSH_PY_SHIM = None
 
 log = logging.getLogger(__name__)
 

@@ -432,6 +432,7 @@ def cpustats():
     get_version = {
         'Linux': linux_cpustats,
         'FreeBSD': freebsd_cpustats,
+        'Junos': freebsd_cpustats,
         'OpenBSD': openbsd_cpustats,
         'SunOS': sunos_cpustats,
         'AIX': aix_cpustats,
@@ -484,13 +485,20 @@ def meminfo():
         '''
         freebsd specific implementation of meminfo
         '''
-        sysctlvm = __salt__['cmd.run']('sysctl vm').splitlines()
-        sysctlvm = [x for x in sysctlvm if x.startswith('vm')]
-        sysctlvm = [x.split(':') for x in sysctlvm]
-        sysctlvm = [[y.strip() for y in x] for x in sysctlvm]
-        sysctlvm = [x for x in sysctlvm if x[1]]  # If x[1] not empty
-
         ret = {}
+        whichlocation = salt.utils.path.which('sysctl')
+
+        if whichlocation:
+            sysctlvm = __salt__['cmd.run']([whichlocation, 'vm'])
+            sysctlvm = [x for x in sysctlvm if x.startswith('vm')]
+            sysctlvm = [x.split(':') for x in sysctlvm]
+            sysctlvm = [[y.strip() for y in x] for x in sysctlvm]
+            sysctlvm = [x for x in sysctlvm if x[1]]  # If x[1] not empty
+        else:
+            ret['message'] = 'Cannot find sysctl'
+            ret['success'] = False
+            return ret
+
         for line in sysctlvm:
             ret[line[0]] = line[1]
         # Special handling for vm.total as it's especially important
@@ -596,6 +604,7 @@ def meminfo():
     get_version = {
         'Linux': linux_meminfo,
         'FreeBSD': freebsd_meminfo,
+        'Junos': freebsd_meminfo,
         'OpenBSD': openbsd_meminfo,
         'AIX': aix_meminfo,
     }
@@ -802,6 +811,7 @@ def cpuinfo():
     get_version = {
         'Linux': linux_cpuinfo,
         'FreeBSD': bsd_cpuinfo,
+        'Junos': bsd_cpuinfo,
         'NetBSD': bsd_cpuinfo,
         'OpenBSD': bsd_cpuinfo,
         'SunOS': sunos_cpuinfo,
@@ -933,6 +943,7 @@ def diskstats():
     get_version = {
         'Linux': linux_diskstats,
         'FreeBSD': generic_diskstats,
+        'Junos': generic_diskstats,
         'SunOS': generic_diskstats,
         'AIX': aix_diskstats,
     }
@@ -1065,6 +1076,7 @@ def vmstats():
     get_version = {
         'Linux': linux_vmstats,
         'FreeBSD': generic_vmstats,
+        'Junos': generic_vmstats,
         'OpenBSD': generic_vmstats,
         'SunOS': generic_vmstats,
         'AIX': generic_vmstats,
@@ -1115,6 +1127,7 @@ def nproc():
         'Linux': linux_nproc,
         'Darwin': generic_nproc,
         'FreeBSD': generic_nproc,
+        'Junos': generic_nproc,
         'OpenBSD': generic_nproc,
         'AIX': _aix_nproc,
     }
@@ -1243,6 +1256,7 @@ def netstats():
         'Linux': linux_netstats,
         'FreeBSD': bsd_netstats,
         'OpenBSD': bsd_netstats,
+        'Junos': bsd_netstats,
         'SunOS': sunos_netstats,
         'AIX': aix_netstats,
     }
@@ -1423,6 +1437,7 @@ def netdev():
     get_version = {
         'Linux': linux_netdev,
         'FreeBSD': freebsd_netdev,
+        'Junos': freebsd_netdev,
         'SunOS': sunos_netdev,
         'AIX': aix_netdev,
     }
@@ -1484,6 +1499,7 @@ def w():  # pylint: disable=C0103
     get_version = {
         'Darwin': bsd_w,
         'FreeBSD': bsd_w,
+        'Junos': bsd_w,
         'Linux': linux_w,
         'OpenBSD': bsd_w,
     }
@@ -1584,6 +1600,7 @@ def version():
     get_version = {
         'Linux': linux_version,
         'FreeBSD': bsd_version,
+        'Junos': bsd_version,
         'OpenBSD': bsd_version,
         'AIX': lambda: __salt__['cmd.run']('oslevel -s'),
     }

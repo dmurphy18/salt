@@ -16,8 +16,10 @@ Refer to :mod:`junos <salt.proxy.junos>` for information on connecting to junos 
 
 # Import Python libraries
 from __future__ import absolute_import, print_function, unicode_literals
+import collections
 import logging
 import os
+import re
 from functools import wraps
 
 try:
@@ -28,6 +30,7 @@ except ImportError:
 # Import Salt libs
 import salt.utils.args
 import salt.utils.files
+import salt.utils.path
 import salt.utils.json
 import salt.utils.stringutils
 from salt.ext import six
@@ -426,11 +429,13 @@ def commit(**kwargs):
 
 
 @timeoutDecorator
-def rollback(**kwargs):
+def rollback(*args, **kwargs):
     '''
     Roll back the last committed configuration changes and commit
 
     id : 0
+        The rollback ID value (0-49)
+    d_id : 0
         The rollback ID value (0-49)
 
     dev_timeout : 30
@@ -455,8 +460,30 @@ def rollback(**kwargs):
     .. code-block:: bash
 
         salt 'device_name' junos.rollback 10
+
+    NOTE: Because of historical reasons and the internals of the Salt state
+    compiler, there are three possible sources of the rollback ID--the
+    positional argument, and the `id` and `d_id` kwargs.  The precedence of
+    the arguments are `id` (positional), `id` (kwarg), `d_id` (kwarg).  In
+    other words, if all three are passed, only the positional argument
+    will be used.  A warning is logged if more than one is passed.
     '''
-    id_ = kwargs.pop('id', 0)
+    ids_passed = 0
+    id_ = 0
+    if 'd_id' in kwargs:
+        id_ = kwargs.pop('d_id')
+        ids_passed = ids_passed + 1
+    if 'id' in kwargs:
+        id_ = kwargs.pop('id', 0)
+        ids_passed = ids_passed + 1
+    if args:
+        id_ = args[0]
+        ids_passed = ids_passed + 1
+
+    if ids_passed > 0:
+        log.warning('junos.rollback called with more than one possible ID.')
+        log.warning('Use only one of the positional argument, `id`, or `d_id` kwargs')
+
 
     ret = {}
     conn = __proxy__['junos.conn']()
@@ -516,11 +543,14 @@ def rollback(**kwargs):
     return ret
 
 
-def diff(**kwargs):
+def diff(*args, **kwargs):
     '''
     Returns the difference between the candidate and the current configuration
 
     id : 0
+        The rollback ID value (0-49)
+
+    d_id : 0
         The rollback ID value (0-49)
 
     CLI Example:
@@ -528,9 +558,31 @@ def diff(**kwargs):
     .. code-block:: bash
 
         salt 'device_name' junos.diff 3
+
+    NOTE: Because of historical reasons and the internals of the Salt state
+    compiler, there are three possible sources of the rollback ID--the
+    positional argument, and the `id` and `d_id` kwargs.  The precedence of
+    the arguments are `id` (positional), `id` (kwarg), `d_id` (kwarg).  In
+    other words, if all three are passed, only the positional argument
+    will be used.  A warning is logged if more than one is passed.
     '''
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
-    id_ = kwargs.pop('id', 0)
+
+    ids_passed = 0
+    if 'd_id' in kwargs:
+        id_ = kwargs.pop('d_id')
+        ids_passed = ids_passed + 1
+    if 'id' in kwargs:
+        id_ = kwargs.pop('id', 0)
+        ids_passed = ids_passed + 1
+    if args:
+        id_ = args[0]
+        ids_passed = ids_passed + 1
+
+    if ids_passed > 0:
+        log.warning('junos.rollback called with more than one possible ID.')
+        log.warning('Use only one of the positional argument, `id`, or `d_id` kwargs')
+
     if kwargs:
         salt.utils.args.invalid_kwargs(kwargs)
 
@@ -1346,3 +1398,399 @@ def commit_check():
         ret['out'] = False
 
     return ret
+
+
+
+
+def _recursive_dict(node):
+    """
+    Convert an lxml.etree node tree into a dict.
+    """
+    result = {}
+
+    for element in node.iterchildren():
+        # Remove namespace prefix
+        key = element.tag.split('}')[1] if '}' in element.tag else element.tag
+
+        # Process element as tree element if the inner XML contains non-whitespace content
+        if element.text and element.text.strip():
+            value = element.text
+        else:
+            value = _recursive_dict(element)
+        if key in result:
+
+
+            if type(result[key]) is list:
+                result[key].append(value)
+            else:
+                tempvalue = result[key].copy()
+                result[key] = [tempvalue, value]
+        else:
+            result[key] = value
+    return result
+
+
+@timeoutDecorator
+def rpc_file_list(path, **kwargs):
+    '''
+    Use the Junos RPC interface to get a list of files and return
+    them as a structure dictionary.
+
+    CLI Example :
+
+        salt junos-router junos.rpc_file_list /var/local/salt/etc
+
+        junos-router:
+        ----------
+        files:
+            ----------
+            directory:
+                ----------
+                directory-name:
+
+                    /var/local/salt/etc
+                file-information:
+                    |_
+                      ----------
+                      file-directory:
+                          ----------
+                      file-name:
+
+                          pki
+                    |_
+                      ----------
+                      file-name:
+
+                          proxy
+                    |_
+                      ----------
+                      file-directory:
+                          ----------
+                      file-name:
+
+                          proxy.d
+                total-file-blocks:
+
+                    10
+                total-files:
+
+                    1
+        success:
+            True
+    '''
+
+    kwargs = salt.utils.args.clean_kwargs(**kwargs)
+    conn = __proxy__['junos.conn']()
+    if conn._conn is None:
+        return False
+
+    results = conn.rpc.file_list(path=path)
+
+    ret = {}
+
+    ret['files'] = _recursive_dict(results)
+
+    ret['success'] = True
+
+    return ret
+
+
+def _strip_newlines(str):
+    stripped = str.replace('\n', '')
+    return stripped
+
+
+def _make_source_list(dir):
+
+    dir_list = []
+    if not dir:
+        return
+    base = rpc_file_list(dir)['files']['directory']
+
+    # No files in this directory
+    if 'file-information' not in base:
+        if 'directory_name' not in base:
+            return None
+        return [os.path.join(_strip_newlines(base.get('directory-name', None)))+'/']
+
+    if isinstance(base['file-information'], dict):
+        dirname = os.path.join(dir, _strip_newlines(base['file-information']['file-name']))
+        if 'file-directory' in base['file-information']:
+            new_list = _make_source_list(os.path.join(dir, dirname))
+            return new_list
+        else:
+            return [dirname]
+    for entry in base['file-information']:
+        if 'file-directory' in entry:
+            new_list = _make_source_list(os.path.join(dir, _strip_newlines(entry['file-name'])))
+            if new_list:
+                dir_list.extend(new_list)
+        else:
+            dir_list.append(os.path.join(dir, _strip_newlines(entry['file-name'])))
+
+    return dir_list
+
+
+@timeoutDecorator
+def file_compare(file1, file2, **kwargs):
+    '''
+    NOTE This function only works on Juniper native minions
+
+    Compare two files and return a dictionary indicating if they
+    are different.
+
+    Dictionary includes `success` key.  If False, one or more files do not
+    exist or some other error occurred.
+
+    Under the hood, this uses the junos CLI command `file compare files ...`
+
+    CLI Example :
+
+        salt junos-router junos.file_compare /var/tmp/backup1/cmt.script /var/tmp/backup2/cmt.script
+
+        junos-router:
+        -------------
+        identical:
+            False
+        success:
+            True
+    '''
+
+    ret = {'message': '',
+           'identical': False,
+           'success': True}
+
+    junos_cli = salt.utils.path.which('cli')
+    if not junos_cli:
+        return {'success': False,
+                'message': 'Cannot find Junos cli command'}
+
+    cliret = __salt__['cmd.run']('{} file compare files {} {} '.format(junos_cli, file1, file2))
+    clilines = cliret.splitlines()
+
+    for r in clilines:
+        if r.strip() != '':
+            if 'No such file' in r:
+                ret['identical'] = False
+                ret['success'] = False
+                return ret
+
+            ret['identical'] = False
+            ret['success'] = True
+            return ret
+
+    ret['identical'] = True
+    ret['success'] = True
+    return ret
+
+
+@timeoutDecorator
+def fsentry_exists(dir, **kwargs):
+    '''
+    NOTE This function only works on Juniper native minions
+
+    Returns a dictionary indicating if `dir` refers to a file
+    or a non-file (generally a directory) in the file system,
+    or if there is no file by that name.
+
+    CLI Example :
+
+        salt junos-router junos.fsentry_exists /var/log
+
+        junos-router:
+        -------------
+        is_dir:
+            True
+        exists:
+            True
+       
+    '''
+    junos_cli = salt.utils.path.which('cli')
+    if not junos_cli:
+        return {'success': False,
+                'message': 'Cannot find Junos cli command'}
+
+    ret = __salt__['cmd.run']('{} file show {}'.format(junos_cli, dir))
+    retlines = ret.splitlines()
+    exists = True
+    is_dir = False
+    status = {'is_dir': False,
+              'exists': True}
+    for r in retlines:
+        if 'could not resolve' in r or 'error: Could not connect' in r:
+            status['is_dir'] = False
+            status['exists'] = False
+        if 'is not a regular file' in r:
+            status['is_dir'] = True
+            status['exists'] = True
+
+    return status
+
+
+def _find_routing_engines():
+    junos_cli = salt.utils.path.which('cli')
+    if not junos_cli:
+        return {'success': False,
+                'message': 'Cannot find Junos cli command'}
+
+    re_check = __salt__['cmd.run']('{} show chassis routing-engine'.format(junos_cli))
+    engine_present = True
+    engine = {}
+
+    # for l in re_check.splitlines():
+    #     if 'error: Unrecognized command' in l:
+    #         engine_present = False
+
+    # if not engine_present:
+    #     return {'success': False,
+    #             'message': 'Device does not have multiple routing engines'}
+
+    current_engine = None
+    status = None
+    for l in re_check.splitlines():
+        if 'Slot' in l:
+            mat = re.search('.*(\d+):.*', l)
+            if mat:
+                current_engine = 're'+str(mat.group(1))+':'
+        if 'Current state' in l:
+            if 'Master' in l:
+                status = 'Master'
+            if 'Disabled' in l:
+                status = 'Disabled'
+            if 'Backup' in l:
+                status = 'Backup'
+
+        if current_engine and status:
+            engine[current_engine] = status
+            current_engine = None
+            status = None
+
+    engine['success'] = True
+    return engine
+
+
+@timeoutDecorator
+def routing_engine(**kwargs):
+    '''
+    Returns a dictionary containing the routiing engines on the device and
+    their status (Master, Disabled, Backup).
+
+    Under the hood parses the result of `show chassis routing-engine`
+
+    CLI Example :
+
+        salt junos-router junos.routing_engine
+
+        junos-router:
+        ----------
+        backup:
+          - re1:
+        master:
+          re0:
+        success:
+          True
+
+    Returns `success: False` if the device does not appear to have multiple routing engines.
+    '''
+    engine_status = _find_routing_engines()
+    if not engine_status['success']:
+        return {'success': False}
+
+    master = None
+    backup = []
+    for k, v in engine_status.items():
+        if v == 'Master':
+            master = k
+        if v == 'Backup' or v == 'Disabled':
+            backup.append(k)
+
+    ret = {'master': master,
+           'backup': backup,
+           'success': True}
+    log.debug(ret)
+    return ret
+
+
+@timeoutDecorator
+def dir_copy(source, dest, force=False, **kwargs):
+    '''
+    Copy a directory and recursively its contents from source to dest.
+
+    NOTE this function only works on the Juniper native minion
+
+    Parameters:
+
+    source : Directory to use as the source
+
+    dest : Directory in which to place the source and its contents.
+
+    force : This function will not copy identical files unless `force` is `True`
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt 'device_name' junos.dir_copy /var/db/scripts/jet /var/tmp
+
+    This will take the `jet` directory and copy it and its contents to /var/tmp.
+    The result will be `/var/tmp/jet/<files and dirs in /var/db/scripts/jet`.
+
+    '''
+    junos_cli = salt.utils.path.which('cli')
+    if not junos_cli:
+        return {'success': False,
+                'message': 'Cannot find Junos cli command'}
+
+    ret = {}
+    ret_messages = ''
+    if not source.startswith('/'):
+        ret['message'] = 'Source directory must be a fully qualified path.'
+        ret['success'] = False
+        return ret
+
+    if not (dest.endswith(':') or dest.startswith('/')):
+        ret['message'] = 'Destination must be a routing engine reference (e.g. re1:) or a fully qualified path.'
+        ret['success'] = False
+        return ret
+
+    check_source = fsentry_exists(source)
+    if not check_source['exists']:
+        ret['message'] = 'Source does not exist'
+        ret['success'] = False
+        return ret
+
+    if not check_source['is_dir']:
+        ret['message'] = 'Source is not a directory.'
+        ret['success'] = False
+        return ret
+
+    filelist = _make_source_list(source)
+    dirops = []
+    for f in filelist:
+        splitpath = os.path.split(f)[0]
+        fullpath = '/'
+        for component in splitpath.split('/'):
+            fullpath = os.path.join(fullpath, component)
+            if fullpath not in dirops:
+                dirops.append(fullpath)
+
+    for d in dirops:
+        target = dest+d
+        status = fsentry_exists(target)
+        if not status['exists']:
+            ret = __salt__['cmd.run']('{} file make-directory {}'.format(junos_cli, target))
+            ret = ret_messages + ret
+        else:
+            ret_messages = ret_messages + 'Directory '+target+' already exists.\n'
+    for f in filelist:
+        if not f.endswith('/'):
+            target = dest+f
+            comp_result = file_compare(f, target)
+
+            if not comp_result['identical'] or force:
+                ret = __salt__['cmd.run']('{} file copy {} {}'.format(junos_cli, f, target))
+                ret = ret_messages + ret
+            else:
+                ret_messages = ret_messages + 'Files {} and {} are identical, not copying.\n'.format(f, target)
+
+    return ret_messages
