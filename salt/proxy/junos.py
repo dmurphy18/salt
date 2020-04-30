@@ -50,6 +50,8 @@ try:
         RpcError, ConnectError, ProbeError, ConnectAuthError,\
         ConnectRefusedError, ConnectTimeoutError
     from ncclient.operations.errors import TimeoutExpiredError
+    from ncclient.transport.third_party.junos.ioproc import IOProc
+
 except ImportError:
     HAS_JUNOS = False
 
