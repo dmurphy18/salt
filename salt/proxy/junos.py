@@ -177,12 +177,12 @@ def ping():
         log.debug("DGM proxy ping conn \'{0}\'".format(dev._conn))
         log.debug("DGM proxy ping session \'{0}\'".format(dev._conn._session))
         log.debug("DGM proxy ping session transport \'{0}\'".format(dev._conn._session._transport))
-        log.debug("DGM proxy ping session check IOProc \'{0}\'".format(isinstance(dev._conn._session, IOProc))
+        log.debug("DGM proxy ping session check IOProc \'{0}\'".format(isinstance(dev._conn._session, IOProc)))
         if (
-            dev._conn._session._transport is not None and
+            (dev._conn._session._transport is not None and
             dev._conn._session._transport.is_active()) or \
             (dev._conn._session._transport is None and
-             isinstance(dev._conn._session, IOProc)):
+             isinstance(dev._conn._session, IOProc)) ):
             # there is no on going rpc call. buffer tell can be 1 as it stores
             # remaining char after "]]>]]>" which can be a new line char
             if dev._conn._session._buffer.tell() <= 1 and \
