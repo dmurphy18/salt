@@ -172,6 +172,9 @@ def ping():
     # call rpc only if ncclient queue is empty. If not empty that means other
     # rpc call is going on.
     if hasattr(dev._conn, '_session'):
+        log.debug("DGM proxy ping conn \'{0}\'".format(dev._conn))
+        log.debug("DGM proxy ping session \'{0}\'".format(dev._conn._session))
+        log.debug("DGM proxy ping session transport \'{0}\'".format(dev._conn._session._transport))
         if (
             dev._conn._session._transport is not None and
             dev._conn._session._transport.is_active()) or \
