@@ -502,7 +502,7 @@ def meminfo():
         for line in sysctlvm:
             ret[line[0]] = line[1]
         # Special handling for vm.total as it's especially important
-        sysctlvmtot = __salt__['cmd.run']('sysctl -n vm.vmtotal').splitlines()
+        sysctlvmtot = __salt__['cmd.run']([whichlocation, '-n', 'vm.vmtotal']).splitlines()
         sysctlvmtot = [x for x in sysctlvmtot if x]
         ret['vm.vmtotal'] = sysctlvmtot
         return ret
