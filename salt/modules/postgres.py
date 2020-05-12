@@ -128,7 +128,7 @@ def __virtual__():
     return True
 
 
-def alfind_pg_binary(util):
+def _find_pg_binary(util):
     '''
     ... versionadded::  2016.3.2
 
