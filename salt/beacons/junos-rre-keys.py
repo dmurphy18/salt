@@ -14,7 +14,12 @@
 #
 # `interval` above is in seconds, 43200 is recommended (every 12 hours)
 
-__virtualname__ = 'junos-rre-keys'
+## DGM __virtualname__ = 'junos-rre-keys'
+def __virtual__():
+    '''
+    Returning False to disable as part of memory leak test
+    '''
+    return (False, 'DGM Disabled to allow for memory leak test')
 
 
 def beacon(config):
