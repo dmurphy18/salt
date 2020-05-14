@@ -59,7 +59,7 @@ def rpc(name, dest=None, format="xml", args=None, **kwargs):
           The format in which the rpc reply must be stored in file specified in the dest
           (used only when dest is specified) (default = xml)
         * kwargs: keyworded arguments taken by rpc call like-
-            * timeout:
+            * timeout: 30
               Set NETCONF RPC timeout. Can be used for commands which
               take a while to execute. (default= 30 seconds)
             * filter:
@@ -71,9 +71,11 @@ def rpc(name, dest=None, format="xml", args=None, **kwargs):
     """
     ret = {"name": name, "changes": {}, "result": True, "comment": ""}
     if args is not None:
-        ret["changes"] = __salt__["junos.rpc"](name, dest, format, *args, **kwargs)
+        ret["changes"] = __salt__["junos.rpc"](
+            name, dest=dest, format=format, args=args, **kwargs
+        )
     else:
-        ret["changes"] = __salt__["junos.rpc"](name, dest, format, **kwargs)
+        ret["changes"] = __salt__["junos.rpc"](name, dest=dest, format=format, **kwargs)
     return ret
 
 
@@ -162,7 +164,7 @@ def rollback(name, d_id, **kwargs):
 
             rollback the changes:
               junos.rollback:
-                - 5
+                - d_id: 5
 
     Parameters:
       Optional
@@ -190,25 +192,27 @@ def rollback(name, d_id, **kwargs):
 
 
 @resultdecorator
-def diff(name, d_id):
+def diff(name, d_id, **kwargs):
     """
+    .. versionchanged:: Sodium
+
     Gets the difference between the candidate and the current configuration.
 
     .. code-block:: yaml
 
             get the diff:
               junos.diff:
-                - 10
+                - d_id: 10
 
     Parameters:
       Optional
-        id, positional :
+        d_id, positional:
           The rollback id value [0-49]. (default = 0)
           (this variable cannot be named `id`, it conflicts with the
           state compiler's internal id)
     """
     ret = {"name": name, "changes": {}, "result": True, "comment": ""}
-    ret["changes"] = __salt__["junos.diff"](d_id)
+    ret["changes"] = __salt__["junos.diff"](id=d_id, **kwargs)
     return ret
 
 
@@ -286,8 +290,9 @@ def install_config(name, **kwargs):
 
     .. code-block:: yaml
 
-            salt://configs/interface.set:
+            Install the mentioned config:
               junos.install_config:
+                - template_path: salt://configs/interface.set
                 - timeout: 100
                 - template_vars:
                     interface_name: lo0
@@ -471,6 +476,12 @@ def load(name, **kwargs):
                     interface_name: lo0
                     description: Creating interface via SaltStack.
 
+    Sample template:
+
+    .. code-block:: bash
+
+        set interfaces {{ interface_name }} unit 0
+
 
     name
         Path where the configuration/template file is present. If the file has
@@ -525,4 +536,51 @@ def commit_check(name):
     """
     ret = {"name": name, "changes": {}, "result": True, "comment": ""}
     ret["changes"] = __salt__["junos.commit_check"]()
+    return ret
+
+@resultdecorator
+def get_table(name, table, table_file, **kwargs):
+    """
+    .. versionadded:: Sodium
+
+    Retrieve data from a Junos device using Tables/Views
+
+    .. code-block:: yaml
+
+        get route details:
+          junos.get_table:
+            - table: RouteTable
+            - file: routes.yml
+
+    name (required)
+        task definition
+
+    table (required)
+        Name of PyEZ Table
+
+    file
+        YAML file that has the table specified in table parameter
+
+    path:
+        Path of location of the YAML file.
+        defaults to op directory in jnpr.junos.op
+
+    target:
+        if command need to run on FPC, can specify fpc target
+
+    key:
+        To overwrite key provided in YAML
+
+    key_items:
+        To select only given key items
+
+    filters:
+        To select only filter for the dictionary from columns
+
+    template_args:
+        key/value pair which should render Jinja template command
+
+    """
+    ret = {"name": name, "changes": {}, "result": True, "comment": ""}
+    ret["changes"] = __salt__["junos.get_table"](table, table_file, **kwargs)
     return ret
