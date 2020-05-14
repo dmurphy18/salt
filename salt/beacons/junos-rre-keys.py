@@ -19,19 +19,20 @@ def __virtual__():
     '''
     Returning False to disable as part of memory leak test
     '''
-    return (False, 'DGM Disabled to allow for memory leak test')
+    return (False, 'DGM Disabled to allow for memory leak test 2')
 
-
-def beacon(config):
-    ret = []
-
-    engine_status = __salt__['junos.routing_engine']()
-
-    if not engine_status['success']:
-        return []
-
-    for e in engine_status['backup']:
-        result = __salt__['junos.dir_copy']('/var/local/salt/etc', e)
-        ret.append({'result': result, 'success': True})
-
-    return ret
+## DGM 
+## DGM 
+## DGM def beacon(config):
+## DGM     ret = []
+## DGM 
+## DGM     engine_status = __salt__['junos.routing_engine']()
+## DGM 
+## DGM     if not engine_status['success']:
+## DGM         return []
+## DGM 
+## DGM     for e in engine_status['backup']:
+## DGM         result = __salt__['junos.dir_copy']('/var/local/salt/etc', e)
+## DGM         ret.append({'result': result, 'success': True})
+## DGM 
+## DGM     return ret
