@@ -14,10 +14,12 @@ import time
 import logging
 import inspect
 import tempfile
+import collections
 import functools
 import threading
 import traceback
 import types
+import weakref
 from zipimport import zipimporter
 
 # Import salt libs
@@ -105,6 +107,48 @@ LIBCLOUD_FUNCS_NOT_SUPPORTED = (
 
 # Will be set to pyximport module at runtime if cython is enabled in config.
 pyximport = None
+
+class Pack(collections.MutableMapping):
+    def __init__(self, obj, mapping):
+        self.obj_ref = weakref.ref(obj)
+        self.mymap = dict()
+        for k, v in mapping.items():
+            self.__setitem__(k, v)
+
+    def __getitem__(self, name):
+        val = self.mymap[name]
+        if isinstance(val, weakref.ref):
+            return val()
+        return val
+
+    def __setitem__(self, name, value):
+        if value is self.obj_ref():
+            self.mymap[name] = weakref.ref(value)
+        elif isinstance(value, LazyLoader):
+            self.mymap[name] = weakref.ref(value)
+        else:
+            self.mymap[name] = value
+
+    def keys(self):
+        return self.mymap.keys()
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __delitem__(self, name):
+        self.mymap.__delitem__(name)
+
+    def __len__(self):
+        return self.mymap.__len__()
+
+    def __eq__(self, other):
+        return dict(self.items()) == dict(other.items())
+
+    def items(self):
+        l = []
+        for k in self.mymap:
+            l.append((k, self[k]))
+        return l
 
 
 def static_loader(
@@ -1177,7 +1221,8 @@ class LazyLoader(salt.utils.lazy.LazyDict):
         '''
 
         self.inject_globals = {}
-        self.pack = {} if pack is None else pack
+        self.pack = Pack(self, {} if pack is None else pack)
+
         if opts is None:
             opts = {}
         threadsafety = not opts.get('multiprocessing')
