@@ -88,7 +88,9 @@ class Unpacker(msgpack.Unpacker):
     Wraps the msgpack.Unpacker and removes non-relevant arguments
     '''
     def __init__(self, *args, **kwargs):
-        msgpack.Unpacker.__init__(self, *args, **_sanitize_msgpack_kwargs(kwargs))
+        msgpack.Unpacker.__init__(
+            self, *args, **_sanitize_msgpack_unpack_kwargs(kwargs)
+        )
 
 
 def pack(o, stream, **kwargs):
@@ -139,7 +141,7 @@ def unpackb(packed, **kwargs):
     By default, this function uses the msgpack module and falls back to
     msgpack_pure.
     '''
-    return msgpack.unpack(stream, **_sanitize_msgpack_unpack_kwargs(kwargs))
+    return msgpack.unpackb(packed, **_sanitize_msgpack_unpack_kwargs(kwargs))
 
 
 # alias for compatibility to simplejson/marshal/pickle.
