@@ -225,9 +225,15 @@ def rpc(cmd=None, dest=None, **kwargs):
     format_ = kwargs.pop("format", "xml")
     if not format_:
         format_ = "xml"
-    # when called from state, dest becomes part of op via __pub_arg
-    dest = dest or op.pop("dest", None)
+## DGM    # when called from state, dest becomes part of op via __pub_arg
+## DGM    dest = dest or op.pop("dest", None)
 
+    # dest becomes part of op via __pub_arg if not None
+    # rpc commands opjecting to dest as part of op
+    if dest:
+        op.pop("dest", None)
+
+    log.debug("DGM junos rpc cmd {0} for dest {1}, op {2}".format(cmd, dest, op))
     if cmd in ["get-config", "get_config"]:
         filter_reply = None
         if "filter" in op:
@@ -1455,15 +1461,18 @@ def load(path=None, **kwargs):
     if "__pub_arg" in kwargs:
         if kwargs["__pub_arg"]:
             if isinstance(kwargs["__pub_arg"][-1], dict):
+                log.debug("DGM junos load kwargs __pub_arg -1 is {0}".format(kwargs["__pub_arg"][-1]))
                 op.update(kwargs["__pub_arg"][-1])
+            else:
+                log.debug("DGM junos load kwargs __pub_arg -1 is not a dict but {0}".format(kwargs["__pub_arg"][-1]))
     else:
+        log.debug("DGM junos load kwargs straigth op update {0}".format(kwargs))
         op.update(kwargs)
 
     kwargs = {}
+    log.debug("DGM junos load template_vars check in op {0}".format(op))
     if "template_vars" in op:
         kwargs = op["template_vars"]
-
-    log.debug("DGM junos load kwargs {0}".format(kwargs))
 
     try:
         template_cached_path = salt.utils.files.mkstemp()
