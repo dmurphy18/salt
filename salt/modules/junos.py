@@ -1469,17 +1469,21 @@ def load(path=None, **kwargs):
         log.debug("DGM junos load kwargs straigth op update {0}".format(kwargs))
         op.update(kwargs)
 
-    kwargs = {}
-    log.debug("DGM junos load template_vars check in op {0}".format(op))
-    if "template_vars" in op:
-        log.debug("DGM junos load template_vars check setting kwargs from op {0}".format(op))
-        kwargs = op["template_vars"]
-        log.debug("DGM junos load template_vars set kwargs from op {0}".format(kwargs))
-
-    log.debug("DGM junos load template_vars check in kwargs {0}".format(kwargs))
+## DGM    kwargs = {}
+## DGM    log.debug("DGM junos load template_vars check in op {0}".format(op))
+## DGM    if "template_vars" in op:
+## DGM        log.debug("DGM junos load template_vars check setting kwargs from op {0}".format(op))
+## DGM        kwargs = op["template_vars"]
+## DGM        log.debug("DGM junos load template_vars set kwargs from op {0}".format(kwargs))
+## DGM
+## DGM    log.debug("DGM junos load template_vars check in kwargs {0}".format(kwargs))
+## DGM    try:
+## DGM        template_cached_path = salt.utils.files.mkstemp()
+## DGM        __salt__["cp.get_template"](path, template_cached_path, **kwargs)
+    log.debug("DGM junos load op {0}".format(op))
     try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__["cp.get_template"](path, template_cached_path, **kwargs)
+        __salt__["cp.get_template"](path, template_cached_path, **op)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
