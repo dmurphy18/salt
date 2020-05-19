@@ -200,7 +200,7 @@ def rpc(cmd=None, dest=None, **kwargs):
         salt 'device' junos.rpc get-interface-information dest=/home/user/interface.xml interface_name='lo0' terse=True
         salt 'device' junos.rpc get-chassis-inventory
     """
-    log.debug("DGM junos rpc cmd {0} for dest {1}".format(cmd, dest))
+    log.debug("DGM junos rpc cmd {0} for dest {1}, kwargs {2}".format(cmd, dest, kwargs))
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -250,6 +250,11 @@ def rpc(cmd=None, dest=None, **kwargs):
     else:
         if "filter" in op:
             log.warning('Filter ignored as it is only used with "get-config" rpc')
+
+        ## DGM debug
+        if "dest" in op:
+            log.warning("DGM dest in op, rpc may reject this for cmd {0}".format(cmd))
+
         try:
             reply = getattr(conn.rpc, cmd.replace("-", "_"))({"format": format_}, **op)
         except Exception as exception:  # pylint: disable=broad-except
@@ -1438,6 +1443,7 @@ def load(path=None, **kwargs):
     ret = {}
     ret["out"] = True
 
+    log.debug("DGM junos load initial kwargs {0}".format(kwargs))
     if path is None:
         ret[
             "message"
