@@ -1472,8 +1472,11 @@ def load(path=None, **kwargs):
     kwargs = {}
     log.debug("DGM junos load template_vars check in op {0}".format(op))
     if "template_vars" in op:
+        log.debug("DGM junos load template_vars check setting kwargs from op {0}".format(op))
         kwargs = op["template_vars"]
+        log.debug("DGM junos load template_vars set kwargs from op {0}".format(kwargs))
 
+    log.debug("DGM junos load template_vars check in kwargs {0}".format(kwargs))
     try:
         template_cached_path = salt.utils.files.mkstemp()
         __salt__["cp.get_template"](path, template_cached_path, **kwargs)
