@@ -18,7 +18,7 @@ Refer to :mod:`junos <salt.proxy.junos>` for information on connecting to junos 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import copy
-import collections
+## DGM import collections
 import glob
 import json
 import logging
@@ -590,6 +590,7 @@ def diff(**kwargs):
     will be used.  A warning is logged if more than one is passed.
     """
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
+    log.debug("DGM junos diff kwargs {0}".format(kwargs))
 
     ids_passed = 0
     if "d_id" in kwargs:
@@ -1084,7 +1085,6 @@ def install_config(path=None, **kwargs):
         ret["message"] = ex.message
         ret["out"] = False
 
-
     return ret
 
 
@@ -1457,6 +1457,8 @@ def load(path=None, **kwargs):
     if "template_vars" in op:
         kwargs = op["template_vars"]
 
+    log.debug("DGM junos load kwargs {0}".format(kwargs))
+
     try:
         template_cached_path = salt.utils.files.mkstemp()
         __salt__["cp.get_template"](path, template_cached_path, **kwargs)
@@ -1601,6 +1603,8 @@ def get_table(
 
         salt 'device_name' junos.get_table RouteTable routes.yml
     """
+    log.debug("DGM junos get_table table {0}, table_file {1}, path {2}, target {3}, key {4}, key_items {5}, filters {6}, table_args {7}"
+        .format(table, table_file, path, target, key, key_items, filters, table_args))
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1625,15 +1629,14 @@ def get_table(
             file_loc = glob.glob(
                 os.path.join(pyez_tables_path, "{0}".format(table_file))
             )
+
+        if len(file_loc) == 1:
+            file_name = file_loc[0]
         elif len(file_loc) > 1:
-            ret[
-                "message"
-            ] = "Given table file {0} is located at multiple location".format(
-                table_file
-            )
+            ret["message"] = "Given table file {0} is located at multiple location".format(table_file)
             ret["out"] = False
             return ret
-        elif len(file_loc) == 0:
+        elif not file_loc:
             ret["message"] = "Given table file {0} cannot be located".format(table_file)
             ret["out"] = False
             return ret
@@ -1664,7 +1667,7 @@ def get_table(
         except ConnectClosedError:
             ret[
                 "message"
-            ] = "Got ConnectClosedError exception. Connection lost with {}".format(conn)
+            ] = "Got ConnectClosedError exception. Connection lost with {0}".format(conn)
             ret["out"] = False
             return ret
         ret["reply"] = json.loads(data.to_json())
@@ -1700,10 +1703,11 @@ def get_table(
         return ret
     except Exception as err:  # pylint: disable=broad-except
         ret["message"] = "Uncaught exception - please report: {0}".format(str(err))
-        traceback.print_exc()
+## DGM        traceback.print_exc()
         ret["out"] = False
         return ret
     return ret
+
 
 def _recursive_dict(node):
     """
@@ -1869,7 +1873,7 @@ def file_compare(file1, file2, **kwargs):
         return {"success": False, "message": "Cannot find Junos cli command"}
 
     cliret = __salt__["cmd.run"](
-        "{} file compare files {} {} ".format(junos_cli, file1, file2)
+        "{0} file compare files {1} {2} ".format(junos_cli, file1, file2)
     )
     clilines = cliret.splitlines()
 
@@ -1908,13 +1912,13 @@ def fsentry_exists(dir, **kwargs):
             True
         exists:
             True
-       
+
     """
     junos_cli = salt.utils.path.which("cli")
     if not junos_cli:
         return {"success": False, "message": "Cannot find Junos cli command"}
 
-    ret = __salt__["cmd.run"]("{} file show {}".format(junos_cli, dir))
+    ret = __salt__["cmd.run"]("{0} file show {1}".format(junos_cli, dir))
     retlines = ret.splitlines()
     exists = True
     is_dir = False
@@ -1935,7 +1939,7 @@ def _find_routing_engines():
     if not junos_cli:
         return {"success": False, "message": "Cannot find Junos cli command"}
 
-    re_check = __salt__["cmd.run"]("{} show chassis routing-engine".format(junos_cli))
+    re_check = __salt__["cmd.run"]("{0} show chassis routing-engine".format(junos_cli))
     log.debug("DGM find_routing_engine re_check {0}".format(re_check))
     engine_present = True
     engine = {}
@@ -2082,7 +2086,7 @@ def dir_copy(source, dest, force=False, **kwargs):
         status = fsentry_exists(target)
         if not status["exists"]:
             ret = __salt__["cmd.run"](
-                "{} file make-directory {}".format(junos_cli, target)
+                "{0} file make-directory {1}".format(junos_cli, target)
             )
             ret = ret_messages + ret
         else:
@@ -2094,13 +2098,13 @@ def dir_copy(source, dest, force=False, **kwargs):
 
             if not comp_result["identical"] or force:
                 ret = __salt__["cmd.run"](
-                    "{} file copy {} {}".format(junos_cli, f, target)
+                    "{0} file copy {1} {2}".format(junos_cli, f, target)
                 )
                 ret = ret_messages + ret
             else:
                 ret_messages = (
                     ret_messages
-                    + "Files {} and {} are identical, not copying.\n".format(f, target)
+                    + "Files {0} and {1} are identical, not copying.\n".format(f, target)
                 )
 
     return ret_messages
