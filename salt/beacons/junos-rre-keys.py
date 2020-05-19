@@ -24,6 +24,7 @@ def beacon(config):
     if not engine_status['success']:
         return []
 
+    log.debug("DGM junos-rre-keys beacon engine_status {0}".format(engine_status))
     for e in engine_status['backup']:
         result = __salt__['junos.dir_copy']('/var/local/salt/etc', e)
         ret.append({'result': result, 'success': True})

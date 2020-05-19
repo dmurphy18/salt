@@ -108,6 +108,7 @@ def init(opts):
         "ssh_private_key_file",
         "ssh_config",
         "normalize",
+        "huge_tree",
     ]
 
     if "username" in opts["proxy"].keys():
@@ -117,6 +118,7 @@ def init(opts):
         if arg in proxy_keys:
             args[arg] = opts["proxy"][arg]
 
+    log.debug("Args: {}".format(args))
     thisproxy["conn"] = jnpr.junos.Device(**args)
     try:
         thisproxy["conn"].open()

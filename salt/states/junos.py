@@ -44,10 +44,14 @@ def rpc(name, dest=None, format="xml", args=None, **kwargs):
               - dest: /home/user/rpc.log
               - interface_name: lo0
 
+        fetch interface information with terse:
+            junos.rpc:
+                - name: get-interface-information
+                - terse: True
 
     Parameters:
       Required
-        * cmd:
+        * name:
           The rpc to be executed. (default = None)
       Optional
         * dest:
@@ -227,9 +231,15 @@ def cli(name, **kwargs):
               junos.cli:
                 - format: xml
 
+            get software version of device:
+              junos.cli:
+                - name: show version
+                - format: text
+                - dest: /home/user/show_version.log
+
     Parameters:
       Required
-        * command:
+        * name:
           The command that need to be executed on Junos CLI. (default = None)
       Optional
         * kwargs: Keyworded arguments which can be provided like-
@@ -285,7 +295,7 @@ def install_config(name, **kwargs):
               junos.install_config:
                 - name: salt://configs/interface.set
                 - timeout: 100
-                - diffs_file: 'var/log/diff'
+                - diffs_file: '/var/log/diff'
 
 
     .. code-block:: yaml
@@ -315,12 +325,18 @@ def install_config(name, **kwargs):
       execute.
 
     overwrite : False
-      Set to ``True`` if you want this file is to completely replace the
-       configuration file.
+        Set to ``True`` if you want this file is to completely replace the
+        configuration file. Sets action to override
+
+        .. note:: This option cannot be used if **format** is "set".
 
     replace : False
       Specify whether the configuration file uses "replace:" statements.  Only
       those statements under the 'replace' tag will be changed.
+
+    merge : False
+        If set to ``True`` will set the load-config action to merge.
+        the default load-config action is 'replace' for xml/json/text config
 
     comment
       Provide a comment to the commit. (default = None)
@@ -464,17 +480,18 @@ def load(name, **kwargs):
 
     .. code-block:: yaml
 
-            Install the mentioned config:
-              junos.load:
-                - name: salt://configs/interface.set
+        Install the mentioned config:
+          junos.load:
+            - name: salt://configs/interface.set
 
     .. code-block:: yaml
 
-            salt://configs/interface.set:
-              junos.load:
-                - template_vars:
-                    interface_name: lo0
-                    description: Creating interface via SaltStack.
+        Install the mentioned config:
+          junos.load:
+            - name: salt://configs/interface.set
+            - template_vars:
+                interface_name: lo0
+                description: Creating interface via SaltStack.
 
     Sample template:
 
@@ -494,9 +511,15 @@ def load(name, **kwargs):
         Set to ``True`` if you want this file is to completely replace the
         configuration file.
 
+        .. note:: This option cannot be used if **format** is "set".
+
     replace : False
         Specify whether the configuration file uses "replace:" statements.
         Only those statements under the 'replace' tag will be changed.
+
+    merge : False
+        If set to ``True`` will set the load-config action to merge.
+        the default load-config action is 'replace' for xml/json/text config
 
     format:
       Determines the format of the contents.
@@ -550,7 +573,14 @@ def get_table(name, table, table_file, **kwargs):
         get route details:
           junos.get_table:
             - table: RouteTable
-            - file: routes.yml
+            - table_file: routes.yml
+
+        get interface details:
+          junos.get_table:
+            - table: EthPortTable
+            - table_file: ethport.yml
+            - table_args:
+                interface_name: ge-0/0/0
 
     name (required)
         task definition

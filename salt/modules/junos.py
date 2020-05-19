@@ -17,6 +17,7 @@ Refer to :mod:`junos <salt.proxy.junos>` for information on connecting to junos 
 # Import Python libraries
 from __future__ import absolute_import, print_function, unicode_literals
 
+import copy
 import collections
 import glob
 import json
@@ -39,6 +40,7 @@ import salt.utils.path
 import salt.utils.json
 import salt.utils.stringutils
 from salt.ext import six
+from salt.exceptions import MinionError
 
 # Juniper interface libraries
 # https://github.com/Juniper/py-junos-eznc
@@ -52,6 +54,7 @@ try:
     import jnpr.junos.cfg
     import jxmlease
     from jnpr.junos.factory.optable import OpTable
+    from jnpr.junos.factory.cfgtable import CfgTable
     import jnpr.junos.op as tables_dir
     from jnpr.junos.factory.factory_loader import FactoryLoader
     import yamlordereddictloader
@@ -197,14 +200,10 @@ def rpc(cmd=None, dest=None, **kwargs):
         salt 'device' junos.rpc get-interface-information dest=/home/user/interface.xml interface_name='lo0' terse=True
         salt 'device' junos.rpc get-chassis-inventory
     """
+    log.debug("DGM junos rpc cmd {0} for dest {1}".format(cmd, dest))
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
-
-    if cmd is None:
-        ret["message"] = "Please provide the rpc to execute."
-        ret["out"] = False
-        return ret
 
     op = dict()
     if "__pub_arg" in kwargs:
@@ -217,6 +216,12 @@ def rpc(cmd=None, dest=None, **kwargs):
                 op[key] = value
     else:
         op.update(kwargs)
+
+    if cmd is None:
+        ret["message"] = "Please provide the rpc to execute."
+        ret["out"] = False
+        return ret
+
     format_ = kwargs.pop("format", "xml")
     if not format_:
         format_ = "xml"
@@ -440,8 +445,10 @@ def commit(**kwargs):
     return ret
 
 
+## DGM CR has  def rollback(*args, **kwargs) which contradicts doc 3000.3
+
 @timeoutDecorator
-def rollback(*args, **kwargs):
+def rollback(**kwargs):
     """
     Roll back the last committed configuration changes and commit
 
@@ -489,9 +496,9 @@ def rollback(*args, **kwargs):
     if "id" in kwargs:
         id_ = kwargs.pop("id", 0)
         ids_passed = ids_passed + 1
-    if args:
-        id_ = args[0]
-        ids_passed = ids_passed + 1
+## DGM    if args:
+## DGM        id_ = args[0]
+## DGM        ids_passed = ids_passed + 1
 
     if ids_passed > 0:
         log.warning("junos.rollback called with more than one possible ID.")
@@ -557,7 +564,9 @@ def rollback(*args, **kwargs):
     return ret
 
 
-def diff(*args, **kwargs):
+## DGM CR has  def diff(*args, **kwargs) which contradicts doc 3000.3
+
+def diff(**kwargs):
     """
     Returns the difference between the candidate and the current configuration
 
@@ -589,9 +598,9 @@ def diff(*args, **kwargs):
     if "id" in kwargs:
         id_ = kwargs.pop("id", 0)
         ids_passed = ids_passed + 1
-    if args:
-        id_ = args[0]
-        ids_passed = ids_passed + 1
+## DGM    if args:
+## DGM        id_ = args[0]
+## DGM        ids_passed = ids_passed + 1
 
     if ids_passed > 0:
         log.warning("junos.rollback called with more than one possible ID.")
@@ -700,7 +709,6 @@ def cli(command=None, **kwargs):
     .. code-block:: bash
 
         salt 'device_name' junos.cli 'show system commit'
-        salt 'device_name' junos.cli 'show version' dev_timeout=40
         salt 'device_name' junos.cli 'show system alarms' format=xml dest=/home/user/cli_output.txt
     """
     conn = __proxy__["junos.conn"]()
@@ -837,7 +845,7 @@ def install_config(path=None, **kwargs):
 
     mode : exclusive
         The mode in which the configuration is locked. Can be one of
-        ``private``, ``dynamic``, ``batch``, ``exclusive``.
+        ``private``, ``dynamic``, ``batch``, ``exclusive``, ``ephemeral``
 
     dev_timeout : 30
         Set NETCONF RPC timeout. Can be used for commands which take a while to
@@ -851,6 +859,10 @@ def install_config(path=None, **kwargs):
         Specify whether the configuration file uses ``replace:`` statements. If
         ``True``, only those statements under the ``replace`` tag will be
         changed.
+
+    merge : False
+        If set to ``True`` will set the load-config action to merge.
+        the default load-config action is 'replace' for xml/json/text config
 
     format
         Determines the format of the contents
@@ -917,15 +929,14 @@ def install_config(path=None, **kwargs):
         op.update(kwargs)
 
     test = op.pop("test", False)
-    template_vars = {}
+
+    kwargs = {}
     if "template_vars" in op:
-        template_vars = op["template_vars"]
+        kwargs = op["template_vars"]
 
     try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__["cp.get_template"](
-            path, template_cached_path, template_vars=template_vars
-        )
+        __salt__["cp.get_template"](path, template_cached_path, **kwargs)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
@@ -956,6 +967,8 @@ def install_config(path=None, **kwargs):
             template_format = "set"
         elif path.endswith("xml"):
             template_format = "xml"
+        elif path.endswith("json"):
+            template_format = "json"
         else:
             template_format = "text"
 
@@ -971,13 +984,19 @@ def install_config(path=None, **kwargs):
         del op["overwrite"]
 
     db_mode = op.pop("mode", "exclusive")
-    if write_diff and db_mode == "dynamic":
-        ret["message"] = "Write diff is not supported with dynamic configuration mode"
+    if write_diff and db_mode in ["dynamic", "ephemeral"]:
+        ret[
+            "message"
+        ] = "Write diff is not supported with dynamic/ephemeral configuration mode"
         ret["out"] = False
         return ret
 
+    config_params = {}
+    if "ephemeral_instance" in op:
+        config_params["ephemeral_instance"] = op.pop("ephemeral_instance")
+
     try:
-        with Config(conn, mode=db_mode) as cu:
+        with Config(conn, mode=db_mode, **config_params) as cu:
             try:
                 cu.load(**op)
             except Exception as exception:  # pylint: disable=broad-except
@@ -990,7 +1009,10 @@ def install_config(path=None, **kwargs):
             finally:
                 salt.utils.files.safe_rm(template_cached_path)
 
-            if db_mode != "dynamic":
+            config_diff = None
+            if db_mode in ["dynamic", "ephemeral"]:
+                log.warning("diff is not supported for dynamic and ephemeral")
+            else:
                 config_diff = cu.diff()
                 if config_diff is None:
                     ret["message"] = "Configuration already applied!"
@@ -1005,7 +1027,9 @@ def install_config(path=None, **kwargs):
 
             # Assume commit_check succeeds and initialize variable check
             check = True
-            if db_mode != "dynamic":
+            if db_mode in ["dynamic", "ephemeral"]:
+                log.warning("commit check not supported for dynamic and ephemeral")
+            else:
                 try:
                     check = cu.commit_check()
                 except Exception as exception:  # pylint: disable=broad-except
@@ -1050,10 +1074,10 @@ def install_config(path=None, **kwargs):
                     exception
                 )
                 ret["out"] = False
-    except ValueError:
-        ret[
-            "message"
-        ] = "Invalid mode. Modes supported: private, dynamic, batch, exclusive"
+    except ValueError as ex:
+        message = "install_config failed due to: {0}".format(str(ex))
+        log.error(message)
+        ret["message"] = message
         ret["out"] = False
     except LockError as ex:
         log.error("Configuration database is locked")
@@ -1097,26 +1121,27 @@ def zeroize():
 @timeoutDecorator
 def install_os(path=None, **kwargs):
     """
-    Installs the given image on the device. After the installation is complete\
-     the device is rebooted,
-    if reboot=True is given as a keyworded argument.
+    Installs the given image on the device. After the installation is complete
+    the device is rebooted, if reboot=True is given as a keyworded argument.
 
     path (required)
         Path where the image file is present on the proxy minion
 
-    remote_path : /vat/tmp
+    remote_path : /var/tmp
         If the value of path  is a file path on the local
         (Salt host's) filesystem, then the image is copied from the local
         filesystem to the :remote_path: directory on the target Junos
         device. The default is ``/var/tmp``. If the value of :path: or
         is a URL, then the value of :remote_path: is unused.
 
-    dev_timeout : 30
+    dev_timeout : 1800
         The NETCONF RPC timeout (in seconds). This argument was added since most of
-        the time the "package add" RPC takes a significant amount of time.  The default
-        RPC timeout is 30 seconds.  So this :timeout: value will be
-        used in the context of the SW installation process.  Defaults to
-        30 minutes (30*60=1800)
+        the time the "package add" RPC takes a significant amount of time.
+        So this :timeout: value will be used in the context of the SW installation
+        process.  Defaults to 30 minutes (30*60=1800 seconds)
+
+    timeout : 1800
+        Alias to dev_timeout for backward compatibility
 
     reboot : False
         Whether to reboot after installation
@@ -1174,8 +1199,8 @@ def install_os(path=None, **kwargs):
     # timeout value is not honoured by sw.install if not passed as argument
     # currently, timeout is set to be maximum of default 1800 and user passed timeout value
     # For info: https://github.com/Juniper/salt/issues/116
-    op.pop("dev_timeout", None)
-    timeout = max(1800, conn.timeout)
+    dev_timeout = max(op.pop("dev_timeout", 0), op.pop("timeout", 0))
+    timeout = max(1800, conn.timeout, dev_timeout)
     # Reboot should not be passed as a keyword argument to install(),
     # Please refer to https://github.com/Juniper/salt/issues/115 for more details
     reboot = op.pop("reboot", False)
@@ -1209,12 +1234,10 @@ def install_os(path=None, **kwargs):
             ret["out"] = False
             return ret
 
-        path = image_cached_path
-
     # install() should not reboot the device, reboot is handled in the next block
+    install_status = False
     try:
-        conn.sw.install(path, progress=True, timeout=timeout, **op)
-        ret["message"] = "Installed the os."
+        install_status = conn.sw.install(path, progress=True, timeout=timeout, **op)
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = 'Installation failed due to: "{0}"'.format(exception)
         ret["out"] = False
@@ -1223,10 +1246,22 @@ def install_os(path=None, **kwargs):
         if not no_copy_:
             salt.utils.files.safe_rm(image_cached_path)
 
+    if install_status is True:
+        ret["message"] = "Installed the os."
+    else:
+        ret["message"] = "Installation failed."
+        ret["out"] = False
+        return ret
+
     # Handle reboot, after the install has finished
     if reboot is True:
+        reboot_kwargs = {}
+        if "vmhost" in op and op.get("vmhost") is True:
+            reboot_kwargs["vmhost"] = True
+        if "all_re" in op:
+            reboot_kwargs["all_re"] = op.get("all_re")
         try:
-            conn.sw.reboot()
+            conn.sw.reboot(**reboot_kwargs)
         except Exception as exception:  # pylint: disable=broad-except
             ret[
                 "message"
@@ -1353,7 +1388,9 @@ def load(path=None, **kwargs):
 
     overwrite : False
         Set to ``True`` if you want this file is to completely replace the
-        configuration file.
+        configuration file. Sets action to override
+
+        .. note:: This option cannot be used if **format** is "set".
 
     replace : False
         Specify whether the configuration file uses ``replace:`` statements. If
@@ -1362,9 +1399,7 @@ def load(path=None, **kwargs):
 
     merge : False
         If set to ``True`` will set the load-config action to merge.
-
-    format
-        Determines the format of the contents
+        the default load-config action is 'replace' for xml/json/text config
 
     update : False
         Compare a complete loaded configuration against the candidate
@@ -1374,6 +1409,9 @@ def load(path=None, **kwargs):
         the configuration is later committed, only system processes that are
         affected by the changed configuration elements parse the new
         configuration. This action is supported from PyEZ 2.1.
+
+    format
+        Determines the format of the contents
 
     template_vars
       Variables to be passed into the template processing engine in addition to
@@ -1447,6 +1485,8 @@ def load(path=None, **kwargs):
             template_format = "set"
         elif path.endswith("xml"):
             template_format = "xml"
+        elif path.endswith("json"):
+            template_format = "json"
         else:
             template_format = "text"
 
@@ -1522,7 +1562,7 @@ def get_table(
     key=None,
     key_items=None,
     filters=None,
-    template_args=None,
+    table_args=None,
 ):
     """
     .. versionadded:: Sodium
@@ -1551,14 +1591,15 @@ def get_table(
     filters:
         To select only filter for the dictionary from columns
 
-    template_args:
+    table_args:
         key/value pair which should render Jinja template command
+        or are passed as args to rpc call in op table
 
     CLI Example:
 
     .. code-block:: bash
 
-        salt 'device_name' junos.get_table
+        salt 'device_name' junos.get_table RouteTable routes.yml
     """
     conn = __proxy__["junos.conn"]()
     ret = {}
@@ -1574,22 +1615,29 @@ def get_table(
         get_kvargs["key_items"] = key_items
     if filters is not None:
         get_kvargs["filters"] = filters
-    if template_args is not None and isinstance(template_args, dict):
-        get_kvargs["args"] = template_args
+    if table_args is not None and isinstance(table_args, dict):
+        get_kvargs["args"] = table_args
     pyez_tables_path = os.path.dirname(os.path.abspath(tables_dir.__file__))
     try:
         if path is not None:
-            file_loc = glob.glob(os.path.join(path, "{}".format(table_file)))
+            file_loc = glob.glob(os.path.join(path, "{0}".format(table_file)))
         else:
             file_loc = glob.glob(
-                os.path.join(pyez_tables_path, "{}".format(table_file))
+                os.path.join(pyez_tables_path, "{0}".format(table_file))
             )
-        if len(file_loc) == 1:
-            file_name = file_loc[0]
-        else:
-            ret["message"] = "Given table file {} cannot be located".format(table_file)
+        elif len(file_loc) > 1:
+            ret[
+                "message"
+            ] = "Given table file {0} is located at multiple location".format(
+                table_file
+            )
             ret["out"] = False
             return ret
+        elif len(file_loc) == 0:
+            ret["message"] = "Given table file {0} cannot be located".format(table_file)
+            ret["out"] = False
+            return ret
+
         try:
             with salt.utils.files.fopen(file_name) as fp:
                 ret["table"] = yaml.load(fp.read(), Loader=yamlordereddictloader.Loader)
@@ -1620,13 +1668,17 @@ def get_table(
             ret["out"] = False
             return ret
         ret["reply"] = json.loads(data.to_json())
-        if data.__class__.__bases__[0] == OpTable:
+        if data.__class__.__bases__[0] in [OpTable, CfgTable]:
             # Sets key value if not present in YAML. To be used by returner
             if ret["table"][table].get("key") is None:
                 ret["table"][table]["key"] = data.ITEM_NAME_XPATH
             # If key is provided from salt state file.
             if key is not None:
                 ret["table"][table]["key"] = data.KEY
+            if table_args is not None:
+                args = copy.copy(data.GET_ARGS)
+                args.update(table_args)
+                ret["table"][table]["args"] = args
         else:
             if target is not None:
                 ret["table"][table]["target"] = data.TARGET
@@ -1634,9 +1686,18 @@ def get_table(
                 ret["table"][table]["key"] = data.KEY
             if key_items is not None:
                 ret["table"][table]["key_items"] = data.KEY_ITEMS
-            if template_args is not None:
-                ret["table"][table]["args"] = data.CMD_ARGS
+            if table_args is not None:
+                args = copy.copy(data.CMD_ARGS)
+                args.update(table_args)
+                ret["table"][table]["args"] = args
                 ret["table"][table]["command"] = data.GET_CMD
+    except ConnectClosedError:
+        ret["message"] = (
+            "Got ConnectClosedError exception. Connection lost "
+            "with {0}".format(str(conn))
+        )
+        ret["out"] = False
+        return ret
     except Exception as err:  # pylint: disable=broad-except
         ret["message"] = "Uncaught exception - please report: {0}".format(str(err))
         traceback.print_exc()
@@ -1875,6 +1936,7 @@ def _find_routing_engines():
         return {"success": False, "message": "Cannot find Junos cli command"}
 
     re_check = __salt__["cmd.run"]("{} show chassis routing-engine".format(junos_cli))
+    log.debug("DGM find_routing_engine re_check {0}".format(re_check))
     engine_present = True
     engine = {}
 
@@ -1906,6 +1968,7 @@ def _find_routing_engines():
             current_engine = None
             status = None
 
+    log.debug("DGM find_routing_engine  engine {0}".format(engine))
     engine["success"] = True
     return engine
 
