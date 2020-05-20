@@ -942,13 +942,13 @@ def install_config(path=None, **kwargs):
 
     test = op.pop("test", False)
 
-    kwargs = {}
+    template_vars = {}
     if "template_vars" in op:
-        kwargs = op["template_vars"]
+        template_vars = op["template_vars"]
 
-    try:
+    try: 
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__["cp.get_template"](path, template_cached_path, **kwargs)
+        __salt__['cp.get_template']( path, template_cached_path, template_vars=template_vars)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
@@ -1469,21 +1469,13 @@ def load(path=None, **kwargs):
         log.debug("DGM junos load kwargs straigth op update {0}".format(kwargs))
         op.update(kwargs)
 
-## DGM    kwargs = {}
-## DGM    log.debug("DGM junos load template_vars check in op {0}".format(op))
-## DGM    if "template_vars" in op:
-## DGM        log.debug("DGM junos load template_vars check setting kwargs from op {0}".format(op))
-## DGM        kwargs = op["template_vars"]
-## DGM        log.debug("DGM junos load template_vars set kwargs from op {0}".format(kwargs))
-## DGM
-## DGM    log.debug("DGM junos load template_vars check in kwargs {0}".format(kwargs))
-## DGM    try:
-## DGM        template_cached_path = salt.utils.files.mkstemp()
-## DGM        __salt__["cp.get_template"](path, template_cached_path, **kwargs)
-    log.debug("DGM junos load op {0}".format(op))
+    template_vars = {}
+    if "template_vars" in op:
+        template_vars = op["template_vars"]
+
     try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__["cp.get_template"](path, template_cached_path, **op)
+        __salt__['cp.get_template']( path, template_cached_path, template_vars=template_vars)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
