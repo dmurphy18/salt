@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ coding: utf-8 -*-
 """
 State modules to interact with Junos devices.
 ==============================================

@@ -14,7 +14,13 @@
 #
 # `interval` above is in seconds, 43200 is recommended (every 12 hours)
 
+## DGM
+import logging
+
 __virtualname__ = 'junos-rre-keys'
+
+## DGM
+log = logging.getLogger(__name__)
 
 def beacon(config):
     ret = []

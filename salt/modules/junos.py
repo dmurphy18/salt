@@ -942,13 +942,9 @@ def install_config(path=None, **kwargs):
 
     test = op.pop("test", False)
 
-    template_vars = {}
-    if "template_vars" in op:
-        template_vars = op["template_vars"]
-
-    try: 
+    try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__['cp.get_template']( path, template_cached_path, template_vars=template_vars)
+        __salt__['cp.get_template']( path, template_cached_path, **op)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
@@ -1466,16 +1462,12 @@ def load(path=None, **kwargs):
             else:
                 log.debug("DGM junos load kwargs __pub_arg -1 is not a dict but {0}".format(kwargs["__pub_arg"][-1]))
     else:
-        log.debug("DGM junos load kwargs straigth op update {0}".format(kwargs))
+        log.debug("DGM junos load kwargs straight op update {0}".format(kwargs))
         op.update(kwargs)
-
-    template_vars = {}
-    if "template_vars" in op:
-        template_vars = op["template_vars"]
 
     try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__['cp.get_template']( path, template_cached_path, template_vars=template_vars)
+        __salt__['cp.get_template']( path, template_cached_path, **op)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
@@ -1987,6 +1979,9 @@ def _find_routing_engines():
             status = None
 
     log.debug("DGM find_routing_engine  engine {0}".format(engine))
+    if not engine:
+        return {"success": False, "message": "Junos cli command returned no information"}
+
     engine["success"] = True
     return engine
 
@@ -2026,7 +2021,10 @@ def routing_engine(**kwargs):
         if v == "Backup" or v == "Disabled":
             backup.append(k)
 
-    ret = {"master": master, "backup": backup, "success": True}
+    if master:
+        ret = {"master": master, "backup": backup, "success": True}
+    else:
+        ret = {"master": master, "backup": backup, "success": False}
     log.debug(ret)
     return ret
 
