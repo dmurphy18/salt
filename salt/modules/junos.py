@@ -18,13 +18,11 @@ Refer to :mod:`junos <salt.proxy.junos>` for information on connecting to junos 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import copy
-## DGM import collections
 import glob
 import json
 import logging
 import os
 import re
-## DGM ???? import traceback
 import yaml
 from functools import wraps
 
@@ -200,7 +198,6 @@ def rpc(cmd=None, dest=None, **kwargs):
         salt 'device' junos.rpc get-interface-information dest=/home/user/interface.xml interface_name='lo0' terse=True
         salt 'device' junos.rpc get-chassis-inventory
     """
-    log.debug("DGM junos rpc cmd {0} for dest {1}, kwargs {2}".format(cmd, dest, kwargs))
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -225,15 +222,12 @@ def rpc(cmd=None, dest=None, **kwargs):
     format_ = kwargs.pop("format", "xml")
     if not format_:
         format_ = "xml"
-## DGM    # when called from state, dest becomes part of op via __pub_arg
-## DGM    dest = dest or op.pop("dest", None)
 
     # dest becomes part of op via __pub_arg if not None
     # rpc commands opjecting to dest as part of op
     if dest:
         op.pop("dest", None)
 
-    log.debug("DGM junos rpc cmd {0} for dest {1}, op {2}".format(cmd, dest, op))
     if cmd in ["get-config", "get_config"]:
         filter_reply = None
         if "filter" in op:
@@ -257,9 +251,8 @@ def rpc(cmd=None, dest=None, **kwargs):
         if "filter" in op:
             log.warning('Filter ignored as it is only used with "get-config" rpc')
 
-        ## DGM debug
         if "dest" in op:
-            log.warning("DGM dest in op, rpc may reject this for cmd {0}".format(cmd))
+            log.warning("dest in op, rpc may reject this for cmd {0}".format(cmd))
 
         try:
             reply = getattr(conn.rpc, cmd.replace("-", "_"))({"format": format_}, **op)
@@ -456,8 +449,6 @@ def commit(**kwargs):
     return ret
 
 
-## DGM CR has  def rollback(*args, **kwargs) which contradicts doc 3000.3
-
 @timeoutDecorator
 def rollback(**kwargs):
     """
@@ -507,9 +498,6 @@ def rollback(**kwargs):
     if "id" in kwargs:
         id_ = kwargs.pop("id", 0)
         ids_passed = ids_passed + 1
-## DGM    if args:
-## DGM        id_ = args[0]
-## DGM        ids_passed = ids_passed + 1
 
     if ids_passed > 0:
         log.warning("junos.rollback called with more than one possible ID.")
@@ -575,8 +563,6 @@ def rollback(**kwargs):
     return ret
 
 
-## DGM CR has  def diff(*args, **kwargs) which contradicts doc 3000.3
-
 def diff(**kwargs):
     """
     Returns the difference between the candidate and the current configuration
@@ -601,8 +587,6 @@ def diff(**kwargs):
     will be used.  A warning is logged if more than one is passed.
     """
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
-    log.debug("DGM junos diff kwargs {0}".format(kwargs))
-
     ids_passed = 0
     if "d_id" in kwargs:
         id_ = kwargs.pop("d_id")
@@ -610,10 +594,6 @@ def diff(**kwargs):
     if "id" in kwargs:
         id_ = kwargs.pop("id", 0)
         ids_passed = ids_passed + 1
-## DGM    if args:
-## DGM        id_ = args[0]
-## DGM        ids_passed = ids_passed + 1
-
     if ids_passed > 0:
         log.warning("junos.rollback called with more than one possible ID.")
         log.warning("Use only one of the positional argument, `id`, or `d_id` kwargs")
@@ -944,7 +924,7 @@ def install_config(path=None, **kwargs):
 
     try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__['cp.get_template']( path, template_cached_path, **op)
+        __salt__['cp.get_template'](path, template_cached_path, **op)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
@@ -1445,7 +1425,6 @@ def load(path=None, **kwargs):
     ret = {}
     ret["out"] = True
 
-    log.debug("DGM junos load initial kwargs {0}".format(kwargs))
     if path is None:
         ret[
             "message"
@@ -1457,17 +1436,13 @@ def load(path=None, **kwargs):
     if "__pub_arg" in kwargs:
         if kwargs["__pub_arg"]:
             if isinstance(kwargs["__pub_arg"][-1], dict):
-                log.debug("DGM junos load kwargs __pub_arg -1 is {0}".format(kwargs["__pub_arg"][-1]))
                 op.update(kwargs["__pub_arg"][-1])
-            else:
-                log.debug("DGM junos load kwargs __pub_arg -1 is not a dict but {0}".format(kwargs["__pub_arg"][-1]))
     else:
-        log.debug("DGM junos load kwargs straight op update {0}".format(kwargs))
         op.update(kwargs)
 
     try:
         template_cached_path = salt.utils.files.mkstemp()
-        __salt__['cp.get_template']( path, template_cached_path, **op)
+        __salt__['cp.get_template'](path, template_cached_path, **op)
     except Exception as ex:  # pylint: disable=broad-except
         ret["message"] = (
             "Salt failed to render the template, please check file path and syntax."
@@ -1609,8 +1584,6 @@ def get_table(
 
         salt 'device_name' junos.get_table RouteTable routes.yml
     """
-    log.debug("DGM junos get_table table {0}, table_file {1}, path {2}, target {3}, key {4}, key_items {5}, filters {6}, table_args {7}"
-        .format(table, table_file, path, target, key, key_items, filters, table_args))
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1709,7 +1682,6 @@ def get_table(
         return ret
     except Exception as err:  # pylint: disable=broad-except
         ret["message"] = "Uncaught exception - please report: {0}".format(str(err))
-## DGM        traceback.print_exc()
         ret["out"] = False
         return ret
     return ret
@@ -1946,7 +1918,6 @@ def _find_routing_engines():
         return {"success": False, "message": "Cannot find Junos cli command"}
 
     re_check = __salt__["cmd.run"]("{0} show chassis routing-engine".format(junos_cli))
-    log.debug("DGM find_routing_engine re_check {0}".format(re_check))
     engine_present = True
     engine = {}
 
@@ -1978,7 +1949,6 @@ def _find_routing_engines():
             current_engine = None
             status = None
 
-    log.debug("DGM find_routing_engine  engine {0}".format(engine))
     if not engine:
         return {"success": False, "message": "Junos cli command returned no information"}
 
