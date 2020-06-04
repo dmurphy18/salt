@@ -74,6 +74,7 @@ def find_mastership():
     Returns master routing-engine number via device login
     :return: master routing-engine number 0|1
     """
+    ret = {}
     log.debug("DGM find_mastership start")
     conn = __proxy__['junos.conn']()
     if not conn.connected:
@@ -85,8 +86,16 @@ def find_mastership():
     mastership_xml = conn.rpc.get_route_engine_information()
     log.debug("DGM find_mastership got mastership_xml")
 
-    master_info = mastership_xml.xpath("/rpc-reply/route-engine-information/"
+    try:
+        master_info = mastership_xml.xpath("/rpc-reply/route-engine-information/"
                                        "route-engine[mastership-state='master']/slot")[0].text
-    log.debug("DGM find_mastership got master_info {0}".format(master_info))
+    except Exception as exc:  # pylint: disable=broad-except
+        log.debug("DGM find_mastership Execution failed due to {0}".format(exc))
+        ret["message"] = 'Execution failed due to "{0}"'.format(exc)
+        ret["out"] = False
+        return ret
 
-    return master_info
+    log.debug("DGM find_mastership got master_info {0}".format(master_info))
+    ret["message"] = master_info
+    ret["out"] = True
+    return ret
