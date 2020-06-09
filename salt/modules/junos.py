@@ -18,10 +18,10 @@ Refer to :mod:`junos <salt.proxy.junos>` for information on connecting to junos 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import copy
-import glob
 import json
 import logging
 import os
+import tempfile
 import re
 import yaml
 from functools import wraps
@@ -38,7 +38,6 @@ import salt.utils.path
 import salt.utils.json
 import salt.utils.stringutils
 from salt.ext import six
-from salt.exceptions import MinionError
 
 # Juniper interface libraries
 # https://github.com/Juniper/py-junos-eznc
@@ -94,9 +93,7 @@ class HandleFileCopy:
     To figure out proper path either from proxy local file system
     or proxy cache or on master. If required, then only copy from
     master to proxy
-
     """
-
     def __init__(self, path, **kwargs):
         self._file_path = path
         self._cached_folder = None
@@ -1272,7 +1269,7 @@ def install_os(path=None, **kwargs):
             "message"
         ] = "Please provide the salt path where the junos image is present."
         ret["out"] = False
-        return ret 
+        return ret
 
     install_status = False
     if not no_copy_:
@@ -1694,7 +1691,7 @@ def get_table(
             except ConnectClosedError:
                 ret[
                     "message"
-                ] = "Got ConnectClosedError exception. Connection lost with {}".format(
+                ] = "Got ConnectClosedError exception. Connection lost with {0}".format(
                     conn
                 )
                 ret["out"] = False
@@ -1732,7 +1729,7 @@ def get_table(
         return ret
     except Exception as err:  # pylint: disable=broad-except
         ret["message"] = "Uncaught exception - please report: {0}".format(str(err))
-        traceback.print_exc()
+##        traceback.print_exc()
         ret["out"] = False
         return ret
     return ret
