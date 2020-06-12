@@ -293,15 +293,6 @@ def rpc(cmd=None, dest=None, **kwargs):
         ret["out"] = False
         return ret
 
-## DGM    format_ = kwargs.pop("format", "xml")
-## DGM    if not format_:
-## DGM        format_ = "xml"
-## DGM
-## DGM    # dest becomes part of op via __pub_arg if not None
-## DGM    # rpc commands opjecting to dest as part of op
-## DGM    if dest:
-## DGM        op.pop("dest", None)
-
     format_ = op.pop("format", "xml")
     # dest becomes part of op via __pub_arg if not None
     # rpc commands objecting to dest as part of op
