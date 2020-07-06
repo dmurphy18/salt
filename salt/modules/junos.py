@@ -168,12 +168,12 @@ def timeoutDecorator(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
         log.debug("DGM timeoutDecorator kwargs '{0}'".format(kwargs))
-        if "dev_timeout" or "timeout" in kwargs:
+        if "dev_timeout" in kwargs or "timeout" in kwargs:
             dev_timeout = max(kwargs.pop("dev_timeout", 0), kwargs.pop("timeout", 0))
             log.debug("DGM timeoutDecorator resulting dev_timeout '{0}'".format(dev_timeout))
             conn = __proxy__["junos.conn"]()
             restore_timeout = conn.timeout
-            conn.timeout = dev_timeout if dev_timeout > 0 else None
+            conn.timeout = dev_timeout
             try:
                 result = function(*args, **kwargs)
                 conn.timeout = restore_timeout
