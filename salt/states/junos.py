@@ -191,7 +191,7 @@ def rollback(name, d_id, **kwargs):
 
     """
     ret = {"name": name, "changes": {}, "result": True, "comment": ""}
-    ret["changes"] = __salt__["junos.rollback"](id=d_id, **kwargs)
+    ret["changes"] = __salt__["junos.rollback"](d_id=d_id, **kwargs)
     return ret
 
 
@@ -216,7 +216,7 @@ def diff(name, d_id=0, **kwargs):
           state compiler's internal id)
     """
     ret = {"name": name, "changes": {}, "result": True, "comment": ""}
-    ret["changes"] = __salt__["junos.diff"](id=d_id, **kwargs)
+    ret["changes"] = __salt__["junos.diff"](d_id=d_id, **kwargs)
     return ret
 
 
