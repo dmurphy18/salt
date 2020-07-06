@@ -171,6 +171,7 @@ def timeoutDecorator(function):
             dev_timeout = max(kwargs.pop("dev_timeout", 0), kwargs.pop("timeout", 0))
             conn = __proxy__["junos.conn"]()
             restore_timeout = conn.timeout
+            kwargs["dev_timeout"] = dev_timeout
             conn.timeout = dev_timeout
             try:
                 result = function(*args, **kwargs)
