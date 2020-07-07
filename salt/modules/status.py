@@ -1714,23 +1714,30 @@ def proxy_reconnect(proxy_name, opts=None):
 
         salt '*' status.proxy_reconnect rest_sample
     '''
-    log.debug("DGM proxy_reconnect entry, proxy_name '{0}'".format(proxy_name))
-
     if not opts:
         opts = __opts__
 
     if 'proxy' not in opts:
-        log.debug("DGM proxy_reconnect proxy_name '{0}', proxy not in opts exit, opts '{1}'".format(proxy_name, opts))
         return False  # fail
 
     proxy_keepalive_fn = proxy_name+'.alive'
-    log.debug("DGM proxy_reconnect proxy_keepalive_fn '{0}', __proxy__".format(proxy_keepalive_fn))
     if proxy_keepalive_fn not in __proxy__:
-        log.debug("DGM proxy_reconnect proxy_keepalive_fn '{0}' not in  __proxy__ '{1}'".format(proxy_keepalive_fn, __proxy__))
         return False  # fail
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
-    log.debug("DGM proxy_reconnect proxy_keepalive_fn  opts '{0}', is_alive '{1}' for '{2}'".format(opts, is_alive, proxy_keepalive_fn))
+
+    ## catch if junos, reset connection after 100 times through here
+    if "junos" == proxy_name:
+        try:
+            proxy_reconnect.counter += 1
+        except AttributeError:
+            proxy_reconnect.counter = 1
+
+        if proxy_reconnect.counter > 100:
+            proxy_reconnect.counter = 1
+            is_alive = False
+            log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
+
     if not is_alive:
         log.debug("DGM proxy_reconnect proxy_keepalive_fn is not alive, close connection and reopen it")
         minion_id = opts.get('proxyid', '') or opts.get('id', '')
@@ -1739,7 +1746,6 @@ def proxy_reconnect(proxy_name, opts=None):
         __proxy__[proxy_name+'.init'](opts)  # reopen connection
         log.debug('Restarted %s (%s proxy)!', minion_id, proxy_name)
 
-    log.debug("DGM proxy_reconnect proxy_keepalive_fn exit")
     return True  # success
 
 
