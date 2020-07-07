@@ -1722,17 +1722,22 @@ def proxy_reconnect(proxy_name, opts=None):
         return False  # fail
 
     proxy_keepalive_fn = proxy_name+'.alive'
+    log.debug("DGM proxy_reconnect proxy_keepalive_fn '{0}'".format(proxy_keepalive_fn))
     if proxy_keepalive_fn not in __proxy__:
+        log.debug("DGM proxy_reconnect proxy_keepalive_fn '{0}' not in __proxy__".format(proxy_keepalive_fn))
         return False  # fail
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
+    log.debug("DGM proxy_reconnect proxy_keepalive_fn  opts '{0}', is_alive '{1}' for '{2}'".format(opts, is_alive, proxy_keepalive_fn))
     if not is_alive:
+        log.debug("DGM proxy_reconnect proxy_keepalive_fn is not alive, close connection and reopen it")
         minion_id = opts.get('proxyid', '') or opts.get('id', '')
         log.info('%s (%s proxy) is down. Restarting.', minion_id, proxy_name)
         __proxy__[proxy_name+'.shutdown'](opts)  # safely close connection
         __proxy__[proxy_name+'.init'](opts)  # reopen connection
         log.debug('Restarted %s (%s proxy)!', minion_id, proxy_name)
 
+    log.debug("DGM proxy_reconnect proxy_keepalive_fn exit")
     return True  # success
 
 
