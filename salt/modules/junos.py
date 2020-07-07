@@ -186,6 +186,7 @@ def timeoutDecorator(function):
     return wrapper
 
 
+@timeoutDecorator
 def facts_refresh():
     """
     Reload the facts dictionary from the device. Usually only needed if,
@@ -682,6 +683,7 @@ def rollback(**kwargs):
     return ret
 
 
+@timeoutDecorator
 def diff(**kwargs):
     """
     Returns the difference between the candidate and the current configuration
@@ -880,6 +882,7 @@ def cli(command=None, **kwargs):
     return ret
 
 
+@timeoutDecorator
 def shutdown(**kwargs):
     """
     Shut down (power off) or reboot a device running Junos OS. This includes
@@ -1263,6 +1266,7 @@ def install_config(path=None, **kwargs):
         return ret
 
 
+@timeoutDecorator
 def zeroize():
     """
     Resets the device to default factory settings
@@ -1465,6 +1469,7 @@ def install_os(path=None, **kwargs):
     return ret
 
 
+@timeoutDecorator
 def file_copy(src=None, dest=None):
     """
     Copies the file from the local device to the junos device
@@ -1508,6 +1513,7 @@ def file_copy(src=None, dest=None):
         return ret
 
 
+@timeoutDecorator
 def lock():
     """
     Attempts an exclusive lock on the candidate configuration. This
@@ -1541,6 +1547,7 @@ def lock():
     return ret
 
 
+@timeoutDecorator
 def unlock():
     """
     Unlocks the candidate configuration.
@@ -1569,6 +1576,7 @@ def unlock():
     return ret
 
 
+@timeoutDecorator
 def load(path=None, **kwargs):
     """
     Loads the configuration from the file provided onto the device.
@@ -1722,6 +1730,7 @@ def load(path=None, **kwargs):
         return ret
 
 
+@timeoutDecorator
 def commit_check():
     """
     Perform a commit check on the configuration
@@ -1748,6 +1757,7 @@ def commit_check():
     return ret
 
 
+@timeoutDecorator
 def get_table(
     table,
     table_file,
