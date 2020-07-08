@@ -1728,17 +1728,17 @@ def proxy_reconnect(proxy_name, opts=None):
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
 
-    log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}', __proxy__ '{2}'".format(is_alive, proxy_name, __proxy__))
+    log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}', __opts__ '{2}'".format(is_alive, proxy_name, __opts__))
 
     ## catch if junos, reset connection after 100 times through here
     if "junos" == proxy_name:
-        if not hasattr(__proxy__, "proxy_counter"):
-            __proxy__["proxy_counter"] = 0
-        __proxy__["proxy_counter"] += 1
+        if not hasattr(__opts__, "proxy_counter"):
+            __opts__["proxy_counter"] = 0
+        __opts__["proxy_counter"] += 1
 
-        log.debug("DGM proxy_reconnect counter '{0}'".format(__proxy__["proxy_counter"]))
-        if __proxy__["proxy_counter"] > 5:
-            __proxy__["proxy_counter"] = 0
+        log.debug("DGM proxy_reconnect counter '{0}'".format(__opts__["proxy_counter"]))
+        if __opts__["proxy_counter"] > 5:
+            __opts__["proxy_counter"] = 0
             is_alive = False
             log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
 
