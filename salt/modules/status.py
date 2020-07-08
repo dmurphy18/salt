@@ -1732,14 +1732,13 @@ def proxy_reconnect(proxy_name, opts=None):
 
     ## catch if junos, reset connection after 100 times through here
     if "junos" == proxy_name:
-        try:
-            proxy_reconnect.counter += 1
-        except AttributeError:
-            proxy_reconnect.counter = 1
+        if not hasattr(opts, "proxy_counter"):
+            opts["proxy_counter"] = 0
+        opts["proxy_counter"] += 1
 
-        log.debug("DGM proxy_reconnect counter '{0}'".format(proxy_reconnect.counter))
-        if proxy_reconnect.counter > 5:
-            proxy_reconnect.counter = 1
+        log.debug("DGM proxy_reconnect counter '{0}'".format(opts["proxy_counter"]))
+        if opts["proxy_counter"] > 5:
+            opts["proxy_counter"] = 0
             is_alive = False
             log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
 
