@@ -1714,6 +1714,8 @@ def proxy_reconnect(proxy_name, opts=None):
 
         salt '*' status.proxy_reconnect rest_sample
     '''
+    log.debug("DGM proxy_reconnect entry")
+
     if not opts:
         opts = __opts__
 
@@ -1726,6 +1728,8 @@ def proxy_reconnect(proxy_name, opts=None):
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
 
+    log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}'".format(is_alive, proxy_name))
+
     ## catch if junos, reset connection after 100 times through here
     if "junos" == proxy_name:
         try:
@@ -1733,7 +1737,8 @@ def proxy_reconnect(proxy_name, opts=None):
         except AttributeError:
             proxy_reconnect.counter = 1
 
-        if proxy_reconnect.counter > 100:
+        log.debug("DGM proxy_reconnect counter '{0}'".format(proxy_reconnect.counter))
+        if proxy_reconnect.counter > 5:
             proxy_reconnect.counter = 1
             is_alive = False
             log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
