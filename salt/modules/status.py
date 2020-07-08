@@ -1732,7 +1732,7 @@ def proxy_reconnect(proxy_name, opts=None):
 
     ## catch if junos, reset connection after 100 times through here
     if "junos" == proxy_name:
-        if not hasattr(__opts__, "proxy_counter"):
+        if "proxy_counter" not in __opts__:
             __opts__["proxy_counter"] = 0
         __opts__["proxy_counter"] += 1
 
