@@ -1728,7 +1728,7 @@ def proxy_reconnect(proxy_name, opts=None):
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
 
-    log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}', __opts__ '{2}'".format(is_alive, proxy_name, __opts__))
+    log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}'".format(is_alive, proxy_name))
 
     ## catch if junos, reset connection after 100 times through here
     ## DGM this is a hack to check if resetting the Junos Connection periodically resolves stress test issues
