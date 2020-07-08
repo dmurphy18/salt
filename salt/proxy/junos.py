@@ -171,13 +171,28 @@ def alive(opts):
 
     dev = conn()
 
-    thisproxy["conn"].connected = ping()
+    ## check if SessionListener sets a TransportError if there is a RpcTimeoutError
+    log.debug("DGM junos.alive checking dev.connected '{0}'".format(dev.connected))
 
-    if not dev.connected:
+    thisproxy["conn"].connected = ping()
+    log.debug("DGM junos.alive thisproxy conn connected '{0}', firing event.fire_master".format(thisproxy["conn"].connected))
+
+##    if not dev.connected:
+##        __salt__["event.fire_master"](
+##            {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
+##        )
+##    return dev.connected
+
+    local_connected = dev.connected
+
+    if not local_connected:
+        log.debug("DGM junos.alive not dev.connected '{0}', firing event.fire_master".format(local_connected))
         __salt__["event.fire_master"](
             {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
         )
-    return dev.connected
+
+    log.debug("DGM junos.alive returning local_connected '{0}'".format(local_connected))
+    return local_connected
 
 
 def ping():

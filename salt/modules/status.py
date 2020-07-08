@@ -1747,7 +1747,7 @@ def proxy_reconnect(proxy_name, opts=None):
             log.debug("DGM proxy_reconnect write to file counter '{0}'".format(proxy_counter))
 
         log.debug("DGM proxy_reconnect counter '{0}'".format(proxy_counter))
-        if not proxy_counter % 5:
+        if not proxy_counter % 10:
             is_alive = False
             log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
 
