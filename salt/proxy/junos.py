@@ -118,7 +118,7 @@ def init(opts):
         if arg in proxy_keys:
             args[arg] = opts["proxy"][arg]
 
-    log.debug("Args: {}".format(args))
+    log.debug("Args: {0}".format(args))
     thisproxy["conn"] = jnpr.junos.Device(**args)
     try:
         thisproxy["conn"].open()
@@ -129,7 +129,7 @@ def init(opts):
         ConnectTimeoutError,
         ConnectError,
     ) as ex:
-        log.error("{} : not able to initiate connection to the device".format(str(ex)))
+        log.error("{0} : not able to initiate connection to the device".format(str(ex)))
         thisproxy["initialized"] = False
         return
 
@@ -145,12 +145,12 @@ def init(opts):
     try:
         thisproxy["conn"].bind(cu=jnpr.junos.utils.config.Config)
     except Exception as ex:  # pylint: disable=broad-except
-        log.error("Bind failed with Config class due to: {}".format(str(ex)))
+        log.error("Bind failed with Config class due to: {0}".format(str(ex)))
 
     try:
         thisproxy["conn"].bind(sw=jnpr.junos.utils.sw.SW)
     except Exception as ex:  # pylint: disable=broad-except
-        log.error("Bind failed with SW class due to: {}".format(str(ex)))
+        log.error("Bind failed with SW class due to: {0}".format(str(ex)))
     thisproxy["initialized"] = True
 
 
@@ -175,7 +175,7 @@ def alive(opts):
 
     if not dev.connected:
         __salt__["event.fire_master"](
-            {}, "junos/proxy/{}/stop".format(opts["proxy"]["host"])
+            {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
         )
     return dev.connected
 
@@ -202,6 +202,16 @@ def ping():
         ):
             # there is no on going rpc call. buffer tell can be 1 as it stores
             # remaining char after "]]>]]>" which can be a new line char
+            log.debug(
+                "DGM junos.alive ping checking if alive for session '{0}'".format(
+                    dev._conn._session
+                )
+            )
+            log.debug(
+                "DGM junos.alive ping checking if alive buffer.tell '{0}' and q.empty '{1}'".format(
+                    dev._conn._session._buffer.tell(), dev._conn._session._q.empty()
+                )
+            )
             if dev._conn._session._buffer.tell() <= 1 and dev._conn._session._q.empty():
                 return _rpc_file_list(dev)
             else:

@@ -1731,14 +1731,22 @@ def proxy_reconnect(proxy_name, opts=None):
     log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}', __opts__ '{2}'".format(is_alive, proxy_name, __opts__))
 
     ## catch if junos, reset connection after 100 times through here
+    ## DGM this is a hack to check if resetting the Junos Connection periodically resolves stress test issues
     if "junos" == proxy_name:
-        if "proxy_counter" not in __opts__:
-            __opts__["proxy_counter"] = 0
-        __opts__["proxy_counter"] += 1
+        filecounter_name = "/var/tmp/proxy_counter"
+        proxy_counter = 0
+        if os.path.isfile(filecounter_name):
+            with salt.utils.files.fopen(filecounter_name, 'rb') as fr_:
+                proxy_counter = fr_.read()
+                log.debug("DGM proxy_reconnect read from file counter '{0}'".format(proxy_counter))
 
-        log.debug("DGM proxy_reconnect counter '{0}'".format(__opts__["proxy_counter"]))
-        if __opts__["proxy_counter"] > 5:
-            __opts__["proxy_counter"] = 0
+        proxy_counter += 1
+        with salt.utils.files.fopen(filecounter_name, 'wb') as fw_:
+            fw_.write(proxy_counter)
+            log.debug("DGM proxy_reconnect write to file counter '{0}'".format(proxy_counter))
+
+        log.debug("DGM proxy_reconnect counter '{0}'".format(proxy_counter))
+        if not proxy_counter % 5:
             is_alive = False
             log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
 
