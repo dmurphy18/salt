@@ -176,6 +176,7 @@ def alive(opts):
 
     ## check if a Junos exception was thrown, if so, close dev and return False
     ## triggering a connection shutdown and restart
+    log.debug("DGM  junos.alive check context '{0}'".format(__context__))
     if "junos_exception" in __context__ and __context__["junos_exception"]:
         __context__["junos_exception"] = False
         log.debug("DGM junos.alive junos exception flag in dunder context set, restarting connection")
