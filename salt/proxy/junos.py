@@ -174,6 +174,17 @@ def alive(opts):
     ## check if SessionListener sets a TransportError if there is a RpcTimeoutError
     log.debug("DGM junos.alive checking dev.connected '{0}'".format(dev.connected))
 
+    ## check if a Junos exception was thrown, if so, close dev and return False
+    ## triggering a connection shutdown and restart
+    if "junos_exception" in __context__ and __context__["junos_exception"]:
+        __context__["junos_exception"] = False
+        log.debug("DGM junos.alive junos exception flag in dunder context set, restarting connection")
+        __salt__["event.fire_master"](
+            {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
+        )
+        dev.close()
+        return False
+
     thisproxy["conn"].connected = ping()
     log.debug("DGM junos.alive thisproxy conn connected '{0}'".format(thisproxy["conn"].connected))
 
