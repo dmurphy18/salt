@@ -175,7 +175,7 @@ def alive(opts):
     log.debug("DGM junos.alive checking dev.connected '{0}'".format(dev.connected))
 
     thisproxy["conn"].connected = ping()
-    log.debug("DGM junos.alive thisproxy conn connected '{0}', firing event.fire_master".format(thisproxy["conn"].connected))
+    log.debug("DGM junos.alive thisproxy conn connected '{0}'".format(thisproxy["conn"].connected))
 
 ##    if not dev.connected:
 ##        __salt__["event.fire_master"](
@@ -228,31 +228,43 @@ def ping():
                 )
             )
             if dev._conn._session._buffer.tell() <= 1 and dev._conn._session._q.empty():
+                log.debug("DGM junos.alive doing _rpc_file_list for dev")
                 return _rpc_file_list(dev)
             else:
+                log.debug("DGM junos.alive skipped ping() call as proxy already getting data")
                 log.debug("skipped ping() call as proxy already getting data")
                 return True
         else:
             # ssh connection is lost
+            log.debug("DGM junos.alive connection lost returning False")
             return False
     else:
         # other connection modes, like telnet
-        return _rpc_file_list(dev)
+        ## return _rpc_file_list(dev)
+        res = _rpc_file_list(dev)
+        log.debug("DGM junos.alive exit call to  _rpc_file_list for dev returned '{0}'".format(res))
+        return res
 
 
 def _rpc_file_list(dev):
     try:
         dev.rpc.file_list(path="/dev/null", dev_timeout=5)
+        log.debug("DGM junos.alive _rpc_file_list for dev return True")
         return True
     except (RpcTimeoutError, ConnectClosedError):
         try:
             dev.close()
+            log.debug("DGM junos.alive _rpc_file_list for dev return False due to RpcTimeoutError, ConnectClosedError exception, closed dev")
             return False
         except (RpcError, ConnectError, TimeoutExpiredError):
+            log.debug("DGM junos.alive _rpc_file_list for dev return False due to RpcError, ConnectError, TimeoutExpiredError exception")
             return False
     except AttributeError as ex:
+        log.debug("DGM junos.alive _rpc_file_list for dev return False due to AttributeError exception '{0}'".format(str(ex)))
         if "'NoneType' object has no attribute 'timeout'" in str(ex):
             return False
+        else:
+            log.debug("DGM junos.alive _rpc_file_list for dev return False due to AttributeError exception and no NoneType")
 
 
 def proxytype():
