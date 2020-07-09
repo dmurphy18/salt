@@ -64,7 +64,8 @@ except ImportError:
 
 __proxyenabled__ = ["junos"]
 
-thisproxy = {}
+## DGM thisproxy = {}
+thisproxy = {"restart_conn": False}
 
 log = logging.getLogger(__name__)
 
@@ -162,6 +163,12 @@ def conn():
     return thisproxy["conn"]
 
 
+def request_restart_conn():
+    # flag that the connection needs to be restarted
+    thisproxy["restart_conn"] = True
+    log.debug("DGM request_restart_conn occurred")
+
+
 def alive(opts):
     """
     Validate and return the connection status with the remote device.
@@ -176,10 +183,11 @@ def alive(opts):
 
     ## check if a Junos exception was thrown, if so, close dev and return False
     ## triggering a connection shutdown and restart
-    log.debug("DGM  junos.alive check context '{0}'".format(__context__))
-    if "junos_exception" in __context__ and __context__["junos_exception"]:
-        __context__["junos_exception"] = False
-        log.debug("DGM junos.alive junos exception flag in dunder context set, restarting connection")
+
+    log.debug("DGM junos.alive check thisproxy[restart_conn] '{0}'".format(thisproxy["restart_conn"]))
+    if "restart_conn" in thisproxy and thisproxy["restart_conn"]:
+        thisproxy["restart_conn"] = False
+        log.debug("DGM junos.alive junos restart connection flag in thisproxy set, restarting connection")
         __salt__["event.fire_master"](
             {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
         )

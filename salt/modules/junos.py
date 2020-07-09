@@ -188,8 +188,8 @@ def timeoutDecorator(function):
 
 def _mark_exception():
     ## DGM set flag in global __context__ that an exception occured
-    __context__["junos_exception"] = True
-    log.debug("DGM setting  __context__[junos_exception] to True")
+    __proxy__["junos.request_restart_conn"]()
+    log.debug("DGM setting __proxy__[junos.request_restart_conn] to True")
 
 
 @timeoutDecorator
