@@ -1732,24 +1732,24 @@ def proxy_reconnect(proxy_name, opts=None):
 
     ## catch if junos, reset connection after 100 times through here
     ## DGM this is a hack to check if resetting the Junos Connection periodically resolves stress test issues
-    if "junos" == proxy_name:
-        filecounter_name = "/var/tmp/proxy_counter.txt"
-        proxy_counter = 0
-        if os.path.isfile(filecounter_name):
-            with salt.utils.files.fopen(filecounter_name, 'r') as fr_:
-                value = "{0}".format(fr_.read().strip())
-                proxy_counter = int(value)
-                log.debug("DGM proxy_reconnect read from file counter '{0}'".format(proxy_counter))
-
-        proxy_counter += 1
-        with salt.utils.files.fopen(filecounter_name, 'w') as fw_:
-            fw_.write("{0}".format(proxy_counter))
-            log.debug("DGM proxy_reconnect write to file counter '{0}'".format(proxy_counter))
-
-        log.debug("DGM proxy_reconnect counter '{0}'".format(proxy_counter))
-        if not proxy_counter % 10:
-            is_alive = False
-            log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
+##     if "junos" == proxy_name:
+##         filecounter_name = "/var/tmp/proxy_counter.txt"
+##         proxy_counter = 0
+##         if os.path.isfile(filecounter_name):
+##             with salt.utils.files.fopen(filecounter_name, 'r') as fr_:
+##                 value = "{0}".format(fr_.read().strip())
+##                 proxy_counter = int(value)
+##                 log.debug("DGM proxy_reconnect read from file counter '{0}'".format(proxy_counter))
+## 
+##         proxy_counter += 1
+##         with salt.utils.files.fopen(filecounter_name, 'w') as fw_:
+##             fw_.write("{0}".format(proxy_counter))
+##             log.debug("DGM proxy_reconnect write to file counter '{0}'".format(proxy_counter))
+## 
+##         log.debug("DGM proxy_reconnect counter '{0}'".format(proxy_counter))
+##         if not proxy_counter % 10:
+##             is_alive = False
+##             log.debug("DGM proxy_reconnect proxy_keepalive_fn resetting connection")
 
     if not is_alive:
         log.debug("DGM proxy_reconnect proxy_keepalive_fn is not alive, close connection and reopen it")
