@@ -186,10 +186,17 @@ def timeoutDecorator(function):
     return wrapper
 
 
-def _mark_exception():
-    ## DGM set flag in global __context__ that an exception occured
-    __proxy__["junos.request_restart_conn"]()
-    log.debug("DGM setting __proxy__[junos.request_restart_conn] to True")
+def _restart_connection():
+    log.debug("DGM junos exception entry, close connection and reopen it")
+    minion_id = __opts__.get("proxyid", "") or __opts__.get("id", "")
+    log.info("Junos exception occurred {0} (junos proxy) is down. Restarting.".format(minion_id))
+    __salt__["event.fire_master"](
+        {}, "junos/proxy/{0}/stop".format(__opts__["proxy"]["host"])
+    )
+    __proxy__["junos.shutdown"](__opts__)  # safely close connection
+    __proxy__["junos.init"](__opts__)  # reopen connection
+    log.debug("Junos exception occurred, restarted {0} (junos proxy)!".format(minion_id))
+    log.debug("DGM junos exception finished, close connection and reopen it")
 
 
 @timeoutDecorator
@@ -212,10 +219,10 @@ def facts_refresh():
     try:
         conn.facts_refresh()
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Execution failed due to '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos facts_refresh exception exit ret '{0}'".format(ret))
+        _restart_connection()
         return ret
 
     ret["facts"] = __proxy__["junos.get_serialized_facts"]()
@@ -247,10 +254,10 @@ def facts():
         ret["facts"] = __proxy__["junos.get_serialized_facts"]()
         ret["out"] = True
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not display facts due to '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos facts exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     log.debug("DGM junos facts exit ret '{0}'".format(ret))
     return ret
@@ -342,10 +349,10 @@ def rpc(cmd=None, dest=None, **kwargs):
         try:
             reply = getattr(conn.rpc, cmd.replace("-", "_"))(filter_reply, options=op)
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["message"] = "RPC execution failed due to '{0}'".format(exception)
             ret["out"] = False
             log.debug("DGM junos rpc failed exception exit ret '{0}'".format(ret))
+            _restart_connection()
             return ret
     else:
         if "filter" in op:
@@ -357,12 +364,12 @@ def rpc(cmd=None, dest=None, **kwargs):
         try:
             reply = getattr(conn.rpc, cmd.replace("-", "_"))({"format": format_}, **op)
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["message"] = "RPC execution failed due to '{0}'".format(exception)
             ret["out"] = False
             log.debug(
                 "DGM junos rpc failed due to exception exit ret '{0}'".format(ret)
             )
+            _restart_connection()
             return ret
 
     if format_ == "text":
@@ -433,23 +440,23 @@ def set_hostname(hostname=None, **kwargs):
     try:
         conn.cu.load(set_string, format="set")
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not load configuration due to error '{0}'".format(
             exception
         )
         ret["out"] = False
         log.debug("DGM junos set_hostname exception exit ret '{0}'".format(ret))
+        _restart_connection()
         return ret
 
     try:
         commit_ok = conn.cu.commit_check()
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not commit check due to error '{0}'".format(exception)
         ret["out"] = False
         log.debug(
             "DGM junos set_hostname exception commit_check exit ret '{0}'".format(ret)
         )
+        _restart_connection()
         return ret
 
     if commit_ok:
@@ -458,7 +465,6 @@ def set_hostname(hostname=None, **kwargs):
             ret["message"] = "Successfully changed hostname."
             ret["out"] = True
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["out"] = False
             ret[
                 "message"
@@ -468,6 +474,7 @@ def set_hostname(hostname=None, **kwargs):
             log.debug(
                 "DGM junos set_hostname exception commit_ok exit ret '{0}'".format(ret)
             )
+            _restart_connection()
             return ret
     else:
         ret["out"] = False
@@ -543,10 +550,10 @@ def commit(**kwargs):
     try:
         commit_ok = conn.cu.commit_check()
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not perform commit check due to '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos commit exception exit ret '{0}'".format(ret))
+        _restart_connection()
         return ret
 
     if commit_ok:
@@ -562,7 +569,6 @@ def commit(**kwargs):
                 ret["message"] = "Commit failed."
                 ret["out"] = False
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["out"] = False
             ret[
                 "message"
@@ -570,6 +576,7 @@ def commit(**kwargs):
                 exception
             )
             log.debug("DGM junos commit exception ret '{0}'".format(ret))
+            _restart_connection()
     else:
         ret["out"] = False
         ret["message"] = "Pre-commit check failed."
@@ -577,10 +584,10 @@ def commit(**kwargs):
         try:
             conn.cu.rollback()
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["out"] = False
             ret["message"] = "Pre-commit check failed, and exception during rollback '{0}'".format(exception)
             log.debug("DGM junos pre-commit check failed and exception during rollback ret '{0}'".format(ret))
+            _restart_connection()
 
         log.debug("DGM junos commit after rollback exit ret '{0}'".format(ret))
 
@@ -657,10 +664,10 @@ def rollback(**kwargs):
     try:
         ret["out"] = conn.cu.rollback(id_)
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Rollback failed due to '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos rollback exception exit ret '{0}'".format(ret))
+        _restart_connection()
         return ret
 
     if ret["out"]:
@@ -684,12 +691,12 @@ def rollback(**kwargs):
     try:
         commit_ok = conn.cu.commit_check()
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not commit check due to '{0}'".format(exception)
         ret["out"] = False
         log.debug(
             "DGM junos rollback commit_check exception exit ret '{0}'".format(ret)
         )
+        _restart_connection()
         return ret
 
     if commit_ok:
@@ -697,7 +704,6 @@ def rollback(**kwargs):
             conn.cu.commit(**op)
             ret["out"] = True
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["out"] = False
             ret[
                 "message"
@@ -707,6 +713,7 @@ def rollback(**kwargs):
             log.debug(
                 "DGM junos rollback commit_ok exception exit ret '{0}'".format(ret)
             )
+            _restart_connection()
             return ret
     else:
         ret["message"] = "Rollback succesfull but pre-commit check failed."
@@ -761,10 +768,10 @@ def diff(**kwargs):
     try:
         ret["message"] = conn.cu.diff(rb_id=id_)
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not get diff with error '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos diff exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     log.debug("DGM junos diff exit '{0}'".format(ret))
     return ret
@@ -829,10 +836,10 @@ def ping(dest_ip=None, **kwargs):
     try:
         ret["message"] = jxmlease.parse(etree.tostring(conn.rpc.ping(**op)))
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Execution failed due to '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos ping exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     log.debug("DGM junos ping exit ret '{0}'".format(ret))
     return ret
@@ -890,10 +897,10 @@ def cli(command=None, **kwargs):
     try:
         result = conn.cli(command, format_, warning=False)
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Execution failed due to '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos cli exception exit ret '{0}'".format(ret))
+        _restart_connection()
         return ret
 
     if format_ == "text":
@@ -991,10 +998,10 @@ def shutdown(**kwargs):
         ret["message"] = "Successfully powered off/rebooted."
         ret["out"] = True
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not poweroff/reboot because '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos shutdown exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     log.debug("DGM junos shutdown exit ret '{0}'".format(ret))
     return ret
@@ -1174,7 +1181,6 @@ def install_config(path=None, **kwargs):
                 try:
                     cu.load(**op)
                 except Exception as exception:  # pylint: disable=broad-except
-                    _mark_exception()
                     ret[
                         "message"
                     ] = "Could not load configuration due to : '{0}'".format(exception)
@@ -1185,6 +1191,7 @@ def install_config(path=None, **kwargs):
                             ret
                         )
                     )
+                    _restart_connection()
                     return ret
 
                 config_diff = None
@@ -1216,7 +1223,6 @@ def install_config(path=None, **kwargs):
                     try:
                         check = cu.commit_check()
                     except Exception as exception:  # pylint: disable=broad-except
-                        _mark_exception()
                         ret[
                             "message"
                         ] = "Commit check threw the following exception: '{0}'".format(
@@ -1228,6 +1234,7 @@ def install_config(path=None, **kwargs):
                                 ret
                             )
                         )
+                        _restart_connection()
                         return ret
 
                 if check and not test:
@@ -1235,7 +1242,6 @@ def install_config(path=None, **kwargs):
                         cu.commit(**commit_params)
                         ret["message"] = "Successfully loaded and committed!"
                     except Exception as exception:  # pylint: disable=broad-except
-                        _mark_exception()
                         ret[
                             "message"
                         ] = "Commit check successful but commit failed with '{0}'".format(
@@ -1247,6 +1253,7 @@ def install_config(path=None, **kwargs):
                                 ret
                             )
                         )
+                        _restart_connection()
                         return ret
 
                 elif not check:
@@ -1256,8 +1263,8 @@ def install_config(path=None, **kwargs):
                             "message"
                         ] = "Loaded configuration but commit check failed, hence rolling back configuration."
                     except Exception as exception:  # pylint: disable=broad-except
-                        _mark_exception()
                         ret["message"] = "Loaded configuration but commit check failed, and exception occurred during rolling back configuration '{0}'".format(exception)
+                        _restart_connection()
 
                     ret["out"] = False
                     log.debug("DGM junos install_config prep ret '{0}'".format(ret))
@@ -1269,9 +1276,9 @@ def install_config(path=None, **kwargs):
                         ] = "Commit check passed, but skipping commit for dry-run and rolling back configuration."
                         ret["out"] = True
                     except Exception as exception:  # pylint: disable=broad-except
-                        _mark_exception()
                         ret["message"] = "Commit check passed, but skipping commit for dry-run andi while rolling back configuration exception occurred '{0}'".format(exception)
                         ret["out"] = False
+                        _restart_connection()
 
                     log.debug(
                         "DGM junos install_config prep check ret '{0}'".format(ret)
@@ -1352,10 +1359,10 @@ def zeroize():
         conn.cli("request system zeroize")
         ret["message"] = "Completed zeroize and rebooted"
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Could not zeroize due to : '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos zeroise exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     log.debug("DGM junos zeroize exit ret '{0}'".format(ret))
     return ret
@@ -1470,7 +1477,6 @@ def install_os(path=None, **kwargs):
                     image_path, progress=True, timeout=timeout, **op
                 )
             except Exception as exception:  # pylint: disable=broad-except
-                _mark_exception()
                 ret["message"] = "Installation failed due to: '{0}'".format(exception)
                 ret["out"] = False
                 log.debug(
@@ -1478,12 +1484,12 @@ def install_os(path=None, **kwargs):
                         ret
                     )
                 )
+                _restart_connection()
                 return ret
     else:
         try:
             install_status = conn.sw.install(path, progress=True, timeout=timeout, **op)
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["message"] = "Installation failed due to: '{0}'".format(exception)
             ret["out"] = False
             log.debug(
@@ -1491,6 +1497,7 @@ def install_os(path=None, **kwargs):
                     ret
                 )
             )
+            _restart_connection()
             return ret
 
     if install_status is True:
@@ -1513,7 +1520,6 @@ def install_os(path=None, **kwargs):
         try:
             conn.sw.reboot(**reboot_kwargs)
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret[
                 "message"
             ] = "Installation successful but reboot failed due to : '{0}'".format(
@@ -1525,6 +1531,7 @@ def install_os(path=None, **kwargs):
                     ret
                 )
             )
+            _restart_connection()
             return ret
 
         ret["message"] = "Successfully installed and rebooted!"
@@ -1603,10 +1610,10 @@ def lock():
         conn.cu.lock()
         ret["message"] = "Successfully locked the configuration."
     except RpcTimeoutError as exception:
-        _mark_exception()
         ret["message"] = "Could not gain lock due to : '{0}'".format(exception)
         ret["out"] = False
         log.debug("DGM junos lock exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     except LockError as exception:
         ret["message"] = "Could not gain lock due to : '{0}'".format(exception)
@@ -1636,12 +1643,12 @@ def unlock():
         conn.cu.unlock()
         ret["message"] = "Successfully unlocked the configuration."
     except RpcTimeoutError as exception:
-        _mark_exception()
         ret["message"] = "Could not unlock configuration due to : '{0}'".format(
             exception
         )
         ret["out"] = False
         log.debug("DGM junos unlock exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     except UnlockError as exception:
         ret["message"] = "Could not unlock configuration due to : '{0}'".format(
@@ -1796,13 +1803,13 @@ def load(path=None, **kwargs):
             conn.cu.load(**op)
             ret["message"] = "Successfully loaded the configuration."
         except Exception as exception:  # pylint: disable=broad-except
-            _mark_exception()
             ret["message"] = "Could not load configuration due to : '{0}'".format(
                 exception
             )
             ret["format"] = op["format"]
             ret["out"] = False
             log.debug("DGM junos load exception exit ret '{0}'".format(ret))
+            _restart_connection()
             return ret
 
         log.debug("DGM junos load exit ret '{0}'".format(ret))
@@ -1828,10 +1835,10 @@ def commit_check():
         conn.cu.commit_check()
         ret["message"] = "Commit check succeeded."
     except Exception as exception:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Commit check failed with {0}".format(exception)
         ret["out"] = False
         log.debug("DGM junos commit_check exception exit ret '{0}'".format(ret))
+        _restart_connection()
 
     log.debug("DGM junos commit_check exit ret '{0}'".format(ret))
     return ret
@@ -1950,7 +1957,6 @@ def get_table(
                 )
                 return ret
             except ConnectClosedError:
-                _mark_exception()
                 ret[
                     "message"
                 ] = "Got ConnectClosedError exception. Connection lost with {0}".format(
@@ -1962,6 +1968,7 @@ def get_table(
                         ret
                     )
                 )
+                _restart_connection()
                 return ret
             ret["reply"] = json.loads(data.to_json())
             if data.__class__.__bases__[0] in [OpTable, CfgTable]:
@@ -1988,7 +1995,6 @@ def get_table(
                     ret["table"][table]["args"] = args
                     ret["table"][table]["command"] = data.GET_CMD
     except ConnectClosedError:
-        _mark_exception()
         ret["message"] = (
             "Got ConnectClosedError exception. Connection lost "
             "with {0}".format(str(conn))
@@ -1999,13 +2005,14 @@ def get_table(
                 ret
             )
         )
+        _restart_connection()
         return ret
     except Exception as err:  # pylint: disable=broad-except
-        _mark_exception()
         ret["message"] = "Uncaught exception - please report: {0}".format(str(err))
         ##        traceback.print_exc()
         ret["out"] = False
         log.debug("DGM junos get_table err exception exit ret '{0}'".format(ret))
+        _restart_connection()
         return ret
     log.debug("DGM junos get_table exit ret '{0}'".format(ret))
     return ret

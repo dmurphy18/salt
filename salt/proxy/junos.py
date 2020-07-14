@@ -64,8 +64,7 @@ except ImportError:
 
 __proxyenabled__ = ["junos"]
 
-## DGM thisproxy = {}
-thisproxy = {"restart_conn": False}
+thisproxy = {}
 
 log = logging.getLogger(__name__)
 
@@ -163,12 +162,6 @@ def conn():
     return thisproxy["conn"]
 
 
-def request_restart_conn():
-    # flag that the connection needs to be restarted
-    thisproxy["restart_conn"] = True
-    log.debug("DGM request_restart_conn occurred")
-
-
 def alive(opts):
     """
     Validate and return the connection status with the remote device.
@@ -181,30 +174,10 @@ def alive(opts):
     ## check if SessionListener sets a TransportError if there is a RpcTimeoutError
     log.debug("DGM junos.alive checking dev.connected '{0}'".format(dev.connected))
 
-    ## check if a Junos exception was thrown, if so, close dev and return False
-    ## triggering a connection shutdown and restart
-
-    log.debug("DGM junos.alive check thisproxy[restart_conn] '{0}'".format(thisproxy["restart_conn"]))
-    if "restart_conn" in thisproxy and thisproxy["restart_conn"]:
-        thisproxy["restart_conn"] = False
-        log.debug("DGM junos.alive junos restart connection flag in thisproxy set, restarting connection")
-        __salt__["event.fire_master"](
-            {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
-        )
-        dev.close()
-        return False
-
     thisproxy["conn"].connected = ping()
     log.debug("DGM junos.alive thisproxy conn connected '{0}'".format(thisproxy["conn"].connected))
 
-##    if not dev.connected:
-##        __salt__["event.fire_master"](
-##            {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
-##        )
-##    return dev.connected
-
     local_connected = dev.connected
-
     if not local_connected:
         log.debug("DGM junos.alive not dev.connected '{0}', firing event.fire_master".format(local_connected))
         __salt__["event.fire_master"](
@@ -311,9 +284,10 @@ def shutdown(opts):
     This is called when the proxy-minion is exiting to make sure the
     connection to the device is closed cleanly.
     """
-    log.debug("Proxy module %s shutting down!!", opts["id"])
+    log.debug("Proxy module {0} shutting down!!".format(opts["id"]))
     try:
         thisproxy["conn"].close()
 
-    except Exception:  # pylint: disable=broad-except
+    except Exception as ex:  # pylint: disable=broad-except
+        log.debug("DGM Proxy module {0} shutting down!!, ignoring exception '{1}'".format(opts["id"], ex))
         pass
