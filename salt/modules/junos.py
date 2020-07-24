@@ -187,7 +187,6 @@ def timeoutDecorator(function):
 
 
 def _restart_connection():
-    log.debug("DGM junos exception entry, close connection and reopen it")
     minion_id = __opts__.get("proxyid", "") or __opts__.get("id", "")
     log.info("Junos exception occurred {0} (junos proxy) is down. Restarting.".format(minion_id))
     __salt__["event.fire_master"](
@@ -196,7 +195,6 @@ def _restart_connection():
     __proxy__["junos.shutdown"](__opts__)  # safely close connection
     __proxy__["junos.init"](__opts__)  # reopen connection
     log.debug("Junos exception occurred, restarted {0} (junos proxy)!".format(minion_id))
-    log.debug("DGM junos exception finished, close connection and reopen it")
 
 
 @timeoutDecorator
@@ -212,7 +210,6 @@ def facts_refresh():
 
         salt 'device_name' junos.facts_refresh
     """
-    log.debug("DGM junos facts_refresh entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -221,7 +218,6 @@ def facts_refresh():
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Execution failed due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos facts_refresh exception exit ret '{0}'".format(ret))
         _restart_connection()
         return ret
 
@@ -230,10 +226,8 @@ def facts_refresh():
     try:
         __salt__["saltutil.sync_grains"]()
     except Exception as exception:  # pylint: disable=broad-except
-        log.debug("DGM junos facts_refresh exception '{0}'".format(exception))
         log.error('Grains could not be updated due to "%s"', exception)
 
-    log.debug("DGM junos facts_refresh exit ret '{0}'".format(ret))
     return ret
 
 
@@ -248,7 +242,6 @@ def facts():
 
         salt 'device_name' junos.facts
     """
-    log.debug("DGM junos facts entry")
     ret = {}
     try:
         ret["facts"] = __proxy__["junos.get_serialized_facts"]()
@@ -256,10 +249,8 @@ def facts():
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not display facts due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos facts exception exit ret '{0}'".format(ret))
         _restart_connection()
 
-    log.debug("DGM junos facts exit ret '{0}'".format(ret))
     return ret
 
 
@@ -300,7 +291,6 @@ def rpc(cmd=None, dest=None, **kwargs):
         salt 'device' junos.rpc get-interface-information dest=/home/user/interface.xml interface_name='lo0' terse=True
         salt 'device' junos.rpc get-chassis-inventory
     """
-    log.debug("DGM junos rpc entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -320,7 +310,6 @@ def rpc(cmd=None, dest=None, **kwargs):
     if cmd is None:
         ret["message"] = "Please provide the rpc to execute."
         ret["out"] = False
-        log.debug("DGM junos rpc cmd none exit ret '{0}'".format(ret))
         return ret
 
     format_ = op.pop("format", "xml")
@@ -336,11 +325,6 @@ def rpc(cmd=None, dest=None, **kwargs):
             except etree.XMLSyntaxError as ex:
                 ret["message"] = "Invalid filter: {0}".format(str(ex))
                 ret["out"] = False
-                log.debug(
-                    "DGM junos rpc etree.XMLSyntaxError exception '{0}', ret '{1}'".format(
-                        str(ex), ret
-                    )
-                )
                 return ret
 
             del op["filter"]
@@ -351,7 +335,6 @@ def rpc(cmd=None, dest=None, **kwargs):
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "RPC execution failed due to '{0}'".format(exception)
             ret["out"] = False
-            log.debug("DGM junos rpc failed exception exit ret '{0}'".format(ret))
             _restart_connection()
             return ret
     else:
@@ -366,9 +349,6 @@ def rpc(cmd=None, dest=None, **kwargs):
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "RPC execution failed due to '{0}'".format(exception)
             ret["out"] = False
-            log.debug(
-                "DGM junos rpc failed due to exception exit ret '{0}'".format(ret)
-            )
             _restart_connection()
             return ret
 
@@ -388,7 +368,7 @@ def rpc(cmd=None, dest=None, **kwargs):
             write_response = etree.tostring(reply)
         with salt.utils.files.fopen(dest, "w") as fp:
             fp.write(salt.utils.stringutils.to_str(write_response))
-    log.debug("DGM junos rpc exit ret '{0}'".format(ret))
+
     return ret
 
 
@@ -417,13 +397,11 @@ def set_hostname(hostname=None, **kwargs):
 
         salt 'device_name' junos.set_hostname salt-device
     """
-    log.debug("DGM junos set_hostname entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     if hostname is None:
         ret["message"] = "Please provide the hostname."
         ret["out"] = False
-        log.debug("DGM junos set_hostname hostname none exit ret '{0}'".format(ret))
         return ret
 
     op = dict()
@@ -444,7 +422,6 @@ def set_hostname(hostname=None, **kwargs):
             exception
         )
         ret["out"] = False
-        log.debug("DGM junos set_hostname exception exit ret '{0}'".format(ret))
         _restart_connection()
         return ret
 
@@ -453,9 +430,6 @@ def set_hostname(hostname=None, **kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not commit check due to error '{0}'".format(exception)
         ret["out"] = False
-        log.debug(
-            "DGM junos set_hostname exception commit_check exit ret '{0}'".format(ret)
-        )
         _restart_connection()
         return ret
 
@@ -471,24 +445,18 @@ def set_hostname(hostname=None, **kwargs):
             ] = "Successfully loaded host-name but commit failed with '{0}'".format(
                 exception
             )
-            log.debug(
-                "DGM junos set_hostname exception commit_ok exit ret '{0}'".format(ret)
-            )
             _restart_connection()
             return ret
     else:
         ret["out"] = False
         ret["message"] = "Successfully loaded host-name but pre-commit check failed."
-        log.debug("DGM junos set_hostname exit before rollback ret '{0}'".format(ret))
         try:
             conn.cu.rollback()
         except Exception as exception:  # pylint: disable=broad-except
             __context__["junos_exception"] = False
             ret["out"] = False
             ret["message"] = "Successfully loaded host-name but rollback before exit failed '{0}'".format(exception)
-            log.debug("DGM junos set_hostname exit exception during rollback ret '{0}'".format(ret))
 
-        log.debug("DGM junos set_hostname exit after rollback ret '{0}'".format(ret))
     return ret
 
 
@@ -533,8 +501,6 @@ def commit(**kwargs):
         salt 'device_name' junos.commit dev_timeout=60 confirm=10
         salt 'device_name' junos.commit sync=True dev_timeout=90
     """
-    log.debug("DGM junos commit entry")
-
     conn = __proxy__["junos.conn"]()
     ret = {}
     op = dict()
@@ -552,7 +518,6 @@ def commit(**kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not perform commit check due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos commit exception exit ret '{0}'".format(ret))
         _restart_connection()
         return ret
 
@@ -575,23 +540,17 @@ def commit(**kwargs):
             ] = "Commit check succeeded but actual commit failed with '{0}'".format(
                 exception
             )
-            log.debug("DGM junos commit exception ret '{0}'".format(ret))
             _restart_connection()
     else:
         ret["out"] = False
         ret["message"] = "Pre-commit check failed."
-        log.debug("DGM junos commit before rollback exit ret '{0}'".format(ret))
         try:
             conn.cu.rollback()
         except Exception as exception:  # pylint: disable=broad-except
             ret["out"] = False
             ret["message"] = "Pre-commit check failed, and exception during rollback '{0}'".format(exception)
-            log.debug("DGM junos pre-commit check failed and exception during rollback ret '{0}'".format(ret))
             _restart_connection()
 
-        log.debug("DGM junos commit after rollback exit ret '{0}'".format(ret))
-
-    log.debug("DGM junos commit exit ret '{0}'".format(ret))
     return ret
 
 
@@ -636,7 +595,6 @@ def rollback(**kwargs):
     other words, if all three are passed, only the positional argument
     will be used.  A warning is logged if more than one is passed.
     """
-    log.debug("DGM junos rollback entry")
     ids_passed = 0
     id_ = 0
     if "d_id" in kwargs:
@@ -666,7 +624,6 @@ def rollback(**kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Rollback failed due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos rollback exception exit ret '{0}'".format(ret))
         _restart_connection()
         return ret
 
@@ -674,7 +631,6 @@ def rollback(**kwargs):
         ret["message"] = "Rollback successful"
     else:
         ret["message"] = "Rollback failed"
-        log.debug("DGM junos rollback exit ret '{0}'".format(ret))
         return ret
 
     if "diffs_file" in op and op["diffs_file"] is not None:
@@ -693,9 +649,6 @@ def rollback(**kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not commit check due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug(
-            "DGM junos rollback commit_check exception exit ret '{0}'".format(ret)
-        )
         _restart_connection()
         return ret
 
@@ -710,15 +663,12 @@ def rollback(**kwargs):
             ] = "Rollback successful but commit failed with error '{0}'".format(
                 exception
             )
-            log.debug(
-                "DGM junos rollback commit_ok exception exit ret '{0}'".format(ret)
-            )
             _restart_connection()
             return ret
     else:
         ret["message"] = "Rollback succesfull but pre-commit check failed."
         ret["out"] = False
-    log.debug("DGM junos rollback exit ret '{0}'".format(ret))
+
     return ret
 
 
@@ -746,7 +696,6 @@ def diff(**kwargs):
     other words, if all three are passed, only the positional argument
     will be used.  A warning is logged if more than one is passed.
     """
-    log.debug("DGM junos diff entry")
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
     ids_passed = 0
     if "d_id" in kwargs:
@@ -770,10 +719,8 @@ def diff(**kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not get diff with error '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos diff exception exit ret '{0}'".format(ret))
         _restart_connection()
 
-    log.debug("DGM junos diff exit '{0}'".format(ret))
     return ret
 
 
@@ -811,7 +758,6 @@ def ping(dest_ip=None, **kwargs):
         salt 'device_name' junos.ping '8.8.8.8' count=5
         salt 'device_name' junos.ping '8.8.8.8' ttl=1 rapid=True
     """
-    log.debug("DGM junos ping entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
 
@@ -838,10 +784,8 @@ def ping(dest_ip=None, **kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Execution failed due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos ping exception exit ret '{0}'".format(ret))
         _restart_connection()
 
-    log.debug("DGM junos ping exit ret '{0}'".format(ret))
     return ret
 
 
@@ -872,7 +816,6 @@ def cli(command=None, **kwargs):
         salt 'device_name' junos.cli 'show system commit'
         salt 'device_name' junos.cli 'show system alarms' format=xml dest=/home/user/cli_output.txt
     """
-    log.debug("DGM junos cli entry")
     conn = __proxy__["junos.conn"]()
 
     format_ = kwargs.pop("format", "text")
@@ -883,7 +826,6 @@ def cli(command=None, **kwargs):
     if command is None:
         ret["message"] = "Please provide the CLI command to be executed."
         ret["out"] = False
-        log.debug("DGM junos cli command None exit ret '{0}'".format(ret))
         return ret
 
     op = dict()
@@ -899,7 +841,6 @@ def cli(command=None, **kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Execution failed due to '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos cli exception exit ret '{0}'".format(ret))
         _restart_connection()
         return ret
 
@@ -916,11 +857,9 @@ def cli(command=None, **kwargs):
         except IOError:
             ret["message"] = 'Unable to open "{0}" to write'.format(op["dest"])
             ret["out"] = False
-            log.debug("DGM junos cli IOError exception exit ret '{0}'".format(ret))
             return ret
 
     ret["out"] = True
-    log.debug("DGM junos cli exit ret '{0}'".format(ret))
     return ret
 
 
@@ -958,7 +897,6 @@ def shutdown(**kwargs):
         salt 'device_name' junos.shutdown shutdown=True in_min=10
         salt 'device_name' junos.shutdown shutdown=True
     """
-    log.debug("DGM junos shutdown entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     sw = SW(conn)
@@ -973,7 +911,6 @@ def shutdown(**kwargs):
     if "shutdown" not in op and "reboot" not in op:
         ret["message"] = "Provide either one of the arguments: shutdown or reboot."
         ret["out"] = False
-        log.debug("DGM junos shutdown bad args exit ret '{0}'".format(ret))
         return ret
 
     try:
@@ -984,9 +921,6 @@ def shutdown(**kwargs):
         else:
             ret["message"] = "Nothing to be done."
             ret["out"] = False
-            log.debug(
-                "DGM junos shutdown nothing to be done exit ret '{0}'".format(ret)
-            )
             return ret
 
         if "in_min" in op:
@@ -1000,10 +934,8 @@ def shutdown(**kwargs):
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not poweroff/reboot because '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos shutdown exception exit ret '{0}'".format(ret))
         _restart_connection()
 
-    log.debug("DGM junos shutdown exit ret '{0}'".format(ret))
     return ret
 
 
@@ -1088,7 +1020,6 @@ def install_config(path=None, **kwargs):
         salt 'device_name' junos.install_config 'salt://my_new_configuration.conf' dev_timeout=300 diffs_file='/salt/confs/old_config.conf' overwrite=True
         salt 'device_name' junos.install_config 'salt://syslog_template.conf' template_vars='{"syslog_host": "10.180.222.7"}'
     """
-    log.debug("DGM junos install_config entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1098,7 +1029,6 @@ def install_config(path=None, **kwargs):
             "message"
         ] = "Please provide the salt path where the configuration is present"
         ret["out"] = False
-        log.debug("DGM junos install_config path None exit ret '{0}'".format(ret))
         return ret
 
     op = {}
@@ -1119,17 +1049,11 @@ def install_config(path=None, **kwargs):
         if template_cached_path is None:
             ret["message"] = "Invalid file path."
             ret["out"] = False
-            log.debug(
-                "DGM junos install_config invalid path exit ret '{0}'".format(ret)
-            )
             return ret
 
         if os.path.getsize(template_cached_path) == 0:
             ret["message"] = "Template failed to render"
             ret["out"] = False
-            log.debug(
-                "DGM junos install_config template failed exit ret '{0}'".format(ret)
-            )
             return ret
 
         write_diff = ""
@@ -1166,11 +1090,6 @@ def install_config(path=None, **kwargs):
                 "message"
             ] = "Write diff is not supported with dynamic/ephemeral configuration mode"
             ret["out"] = False
-            log.debug(
-                "DGM junos install_config dyn,eph config mode exit ret '{0}'".format(
-                    ret
-                )
-            )
             return ret
 
         config_params = {}
@@ -1186,11 +1105,6 @@ def install_config(path=None, **kwargs):
                     ] = "Could not load configuration due to : '{0}'".format(exception)
                     ret["format"] = op["format"]
                     ret["out"] = False
-                    log.debug(
-                        "DGM junos install_config load exception exit ret '{0}'".format(
-                            ret
-                        )
-                    )
                     _restart_connection()
                     return ret
 
@@ -1202,11 +1116,6 @@ def install_config(path=None, **kwargs):
                     if config_diff is None:
                         ret["message"] = "Configuration already applied!"
                         ret["out"] = True
-                        log.debug(
-                            "DGM junos install_config already applied exit ret '{0}'".format(
-                                ret
-                            )
-                        )
                         return ret
 
                 commit_params = {}
@@ -1229,11 +1138,6 @@ def install_config(path=None, **kwargs):
                             exception
                         )
                         ret["out"] = False
-                        log.debug(
-                            "DGM junos install_config commit_check exception exit ret '{0}'".format(
-                                ret
-                            )
-                        )
                         _restart_connection()
                         return ret
 
@@ -1248,11 +1152,6 @@ def install_config(path=None, **kwargs):
                             exception
                         )
                         ret["out"] = False
-                        log.debug(
-                            "DGM junos install_config commit failed exception exit ret '{0}'".format(
-                                ret
-                            )
-                        )
                         _restart_connection()
                         return ret
 
@@ -1267,7 +1166,6 @@ def install_config(path=None, **kwargs):
                         _restart_connection()
 
                     ret["out"] = False
-                    log.debug("DGM junos install_config prep ret '{0}'".format(ret))
                 else:
                     try:
                         cu.rollback()
@@ -1280,9 +1178,6 @@ def install_config(path=None, **kwargs):
                         ret["out"] = False
                         _restart_connection()
 
-                    log.debug(
-                        "DGM junos install_config prep check ret '{0}'".format(ret)
-                    )
                 try:
                     if write_diff and config_diff is not None:
                         with salt.utils.files.fopen(write_diff, "w") as fp:
@@ -1294,42 +1189,22 @@ def install_config(path=None, **kwargs):
                         exception
                     )
                     ret["out"] = False
-                    log.debug(
-                        "DGM junos install_config fail write diffs exception exit ret '{0}'".format(
-                            ret
-                        )
-                    )
+
         except ValueError as ex:
             message = "install_config failed due to: {0}".format(str(ex))
             log.error(message)
             ret["message"] = message
             ret["out"] = False
-            log.debug(
-                "DGM junos install_config ValueError exception exit ret '{0}'".format(
-                    ret
-                )
-            )
         except LockError as ex:
             log.error("Configuration database is locked")
             ret["message"] = ex.message
             ret["out"] = False
-            log.debug(
-                "DGM junos install_config LockError exception exit ret '{0}'".format(
-                    ret
-                )
-            )
         except RpcTimeoutError as ex:
             message = "install_config failed due to timeout error : {0}".format(str(ex))
             log.error(message)
             ret["message"] = message
             ret["out"] = False
-            log.debug(
-                "DGM junos install_config RpcTimeoutError exception exit ret '{0}'".format(
-                    ret
-                )
-            )
 
-        log.debug("DGM junos install_config exit ret '{0}'".format(ret))
         return ret
 
 
@@ -1351,7 +1226,6 @@ def zeroize():
 
         salt 'device_name' junos.zeroize
     """
-    log.debug("DGM junos zeroize entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1361,10 +1235,8 @@ def zeroize():
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Could not zeroize due to : '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos zeroise exception exit ret '{0}'".format(ret))
         _restart_connection()
 
-    log.debug("DGM junos zeroize exit ret '{0}'".format(ret))
     return ret
 
 
@@ -1434,7 +1306,6 @@ def install_os(path=None, **kwargs):
         salt 'device_name' junos.install_os 'salt://images/junos_image.tgz' reboot=True
         salt 'device_name' junos.install_os 'salt://junos_16_1.tgz' dev_timeout=300
     """
-    log.debug("DGM junos install_os entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1479,11 +1350,6 @@ def install_os(path=None, **kwargs):
             except Exception as exception:  # pylint: disable=broad-except
                 ret["message"] = "Installation failed due to: '{0}'".format(exception)
                 ret["out"] = False
-                log.debug(
-                    "DGM junos install_os install fail exception exit ret '{0}'".format(
-                        ret
-                    )
-                )
                 _restart_connection()
                 return ret
     else:
@@ -1492,11 +1358,6 @@ def install_os(path=None, **kwargs):
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "Installation failed due to: '{0}'".format(exception)
             ret["out"] = False
-            log.debug(
-                "DGM junos install_os second install fail exception exit ret '{0}'".format(
-                    ret
-                )
-            )
             _restart_connection()
             return ret
 
@@ -1505,9 +1366,6 @@ def install_os(path=None, **kwargs):
     else:
         ret["message"] = "Installation failed."
         ret["out"] = False
-        log.debug(
-            "DGM junos install_os install status false exit ret '{0}'".format(ret)
-        )
         return ret
 
     # Handle reboot, after the install has finished
@@ -1526,17 +1384,11 @@ def install_os(path=None, **kwargs):
                 exception
             )
             ret["out"] = False
-            log.debug(
-                "DGM junos install_os install reboot failed exception exit ret '{0}'".format(
-                    ret
-                )
-            )
             _restart_connection()
             return ret
 
         ret["message"] = "Successfully installed and rebooted!"
 
-    log.debug("DGM junos install_os exit ret '{0}'".format(ret))
     return ret
 
 
@@ -1557,7 +1409,6 @@ def file_copy(src=None, dest=None):
 
         salt 'device_name' junos.file_copy /home/m2/info.txt info_copy.txt
     """
-    log.debug("DGM junos file_copy entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1566,7 +1417,6 @@ def file_copy(src=None, dest=None):
         if fp is None:
             ret["message"] = "Invalid source file path {0}".format(src)
             ret["out"] = False
-            log.debug("DGM junos file_copy fp None exit ret '{0}'".format(ret))
             return ret
 
         try:
@@ -1578,9 +1428,7 @@ def file_copy(src=None, dest=None):
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "Could not copy file : '{0}'".format(exception)
             ret["out"] = False
-            log.debug("DGM junos file_copy exception exit ret '{0}'".format(ret))
 
-        log.debug("DGM junos file_copy exit ret '{0}'".format(ret))
         return ret
 
 
@@ -1602,7 +1450,6 @@ def lock():
 
         salt 'device_name' junos.lock
     """
-    log.debug("DGM junos lock entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1612,15 +1459,12 @@ def lock():
     except RpcTimeoutError as exception:
         ret["message"] = "Could not gain lock due to : '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos lock exception exit ret '{0}'".format(ret))
         _restart_connection()
 
     except LockError as exception:
         ret["message"] = "Could not gain lock due to : '{0}'".format(exception)
         ret["out"] = False
-        log.debug("DGM junos lock exception exit ret '{0}'".format(ret))
 
-    log.debug("DGM junos lock exit ret '{0}'".format(ret))
     return ret
 
 
@@ -1635,7 +1479,6 @@ def unlock():
 
         salt 'device_name' junos.unlock
     """
-    log.debug("DGM junos unlock entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1647,7 +1490,6 @@ def unlock():
             exception
         )
         ret["out"] = False
-        log.debug("DGM junos unlock exception exit ret '{0}'".format(ret))
         _restart_connection()
 
     except UnlockError as exception:
@@ -1655,9 +1497,7 @@ def unlock():
             exception
         )
         ret["out"] = False
-        log.debug("DGM junos unlock exception exit ret '{0}'".format(ret))
 
-    log.debug("DGM junos unlock exit ret '{0}'".format(ret))
     return ret
 
 
@@ -1721,7 +1561,6 @@ def load(path=None, **kwargs):
 
         salt 'device_name' junos.load 'salt://syslog_template.conf' template_vars='{"syslog_host": "10.180.222.7"}'
     """
-    log.debug("DGM junos load entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1731,7 +1570,6 @@ def load(path=None, **kwargs):
             "message"
         ] = "Please provide the salt path where the configuration is present"
         ret["out"] = False
-        log.debug("DGM junos load path None exit ret '{0}'".format(ret))
         return ret
 
     op = {}
@@ -1750,13 +1588,11 @@ def load(path=None, **kwargs):
         if template_cached_path is None:
             ret["message"] = "Invalid file path."
             ret["out"] = False
-            log.debug("DGM junos load template path None exit ret '{0}'".format(ret))
             return ret
 
         if os.path.getsize(template_cached_path) == 0:
             ret["message"] = "Template failed to render"
             ret["out"] = False
-            log.debug("DGM junos load template failed exit ret '{0}'".format(ret))
             return ret
 
         op["path"] = template_cached_path
@@ -1785,7 +1621,6 @@ def load(path=None, **kwargs):
                 actions
             )
             ret["out"] = False
-            log.debug("DGM junos load one action exit ret '{0}'".format(ret))
             return ret
 
         if "replace" in op and op["replace"]:
@@ -1808,11 +1643,9 @@ def load(path=None, **kwargs):
             )
             ret["format"] = op["format"]
             ret["out"] = False
-            log.debug("DGM junos load exception exit ret '{0}'".format(ret))
             _restart_connection()
             return ret
 
-        log.debug("DGM junos load exit ret '{0}'".format(ret))
         return ret
 
 
@@ -1827,7 +1660,6 @@ def commit_check():
 
         salt 'device_name' junos.commit_check
     """
-    log.debug("DGM junos commit_check entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1837,10 +1669,8 @@ def commit_check():
     except Exception as exception:  # pylint: disable=broad-except
         ret["message"] = "Commit check failed with {0}".format(exception)
         ret["out"] = False
-        log.debug("DGM junos commit_check exception exit ret '{0}'".format(ret))
         _restart_connection()
 
-    log.debug("DGM junos commit_check exit ret '{0}'".format(ret))
     return ret
 
 
@@ -1894,7 +1724,6 @@ def get_table(
         salt 'device_name' junos.get_table EthPortTable ethport.yml table_args='{"interface_name": "ge-3/2/2"}'
         salt 'device_name' junos.get_table EthPortTable ethport.yml salt://tables
     """
-    log.debug("DGM junos get_table entry")
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1938,9 +1767,6 @@ def get_table(
                     six.text_type(err)
                 )
                 ret["out"] = False
-                log.debug(
-                    "DGM junos get_table IOError exception exit ret '{0}'".format(ret)
-                )
                 return ret
             try:
                 data = globals()[table](conn)
@@ -1952,9 +1778,6 @@ def get_table(
                     six.text_type(err)
                 )
                 ret["out"] = False
-                log.debug(
-                    "DGM junos get_table KeyError exception exit ret '{0}'".format(ret)
-                )
                 return ret
             except ConnectClosedError:
                 ret[
@@ -1963,11 +1786,6 @@ def get_table(
                     conn
                 )
                 ret["out"] = False
-                log.debug(
-                    "DGM junos get_table ConnClosedError exception exit ret '{0}'".format(
-                        ret
-                    )
-                )
                 _restart_connection()
                 return ret
             ret["reply"] = json.loads(data.to_json())
@@ -2000,21 +1818,14 @@ def get_table(
             "with {0}".format(str(conn))
         )
         ret["out"] = False
-        log.debug(
-            "DGM junos get_table second ConnClosedError exception exit ret '{0}'".format(
-                ret
-            )
-        )
         _restart_connection()
         return ret
     except Exception as err:  # pylint: disable=broad-except
         ret["message"] = "Uncaught exception - please report: {0}".format(str(err))
         ##        traceback.print_exc()
         ret["out"] = False
-        log.debug("DGM junos get_table err exception exit ret '{0}'".format(ret))
         _restart_connection()
         return ret
-    log.debug("DGM junos get_table exit ret '{0}'".format(ret))
     return ret
 
 
@@ -2093,23 +1904,17 @@ def rpc_file_list(path, **kwargs):
         success:
             True
     """
-    log.debug("DGM junos rpc_file_list entry")
-
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
     conn = __proxy__["junos.conn"]()
     if conn._conn is None:
-        log.debug("DGM junos rpc_file_list conn None exit False")
         return False
 
     results = conn.rpc.file_list(path=path)
 
     ret = {}
-
     ret["files"] = _recursive_dict(results)
-
     ret["success"] = True
 
-    log.debug("DGM junos rpc_file_list exit ret '{0}'".format(ret))
     return ret
 
 

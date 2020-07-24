@@ -1714,7 +1714,6 @@ def proxy_reconnect(proxy_name, opts=None):
 
         salt '*' status.proxy_reconnect rest_sample
     '''
-    log.debug("DGM proxy_reconnect entry")
 
     if not opts:
         opts = __opts__
@@ -1728,10 +1727,7 @@ def proxy_reconnect(proxy_name, opts=None):
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
 
-    log.debug("DGM proxy_reconnect is_alive '{0}' for proxy_name '{1}'".format(is_alive, proxy_name))
-
     if not is_alive:
-        log.debug("DGM proxy_reconnect proxy_keepalive_fn is not alive, close connection and reopen it")
         minion_id = opts.get('proxyid', '') or opts.get('id', '')
         log.info('%s (%s proxy) is down. Restarting.', minion_id, proxy_name)
         __proxy__[proxy_name+'.shutdown'](opts)  # safely close connection
