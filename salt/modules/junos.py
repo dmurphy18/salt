@@ -178,10 +178,15 @@ def timeoutDecorator(function):
 ##                if "__pub_fun" in kwargs:
 ##                    log.debug("DGM junos wrapper try skipping _pub_fun")
 ##                    kwargs.pop("__pub_fun")
+                del_list = []
                 for keychk in kwargs:
                     if keychk.startswith("__pub"):
-                        log.debug("DGM junos wrapper try skipping '{0}'".format(keychk))
-                        kwargs.pop(keychk)
+                        log.debug("DGM junos wrapper try - adding to del_list '{0}'".format(keychk))
+                        del_list.append(keychk)
+                if not del_list.empty:
+                    for delkey in del_list:
+                        log.debug("DGM junos wrapper try - removing key '{0}' from kwargs".format(delkey))
+                        kwargs.pop(delkey)
 
                 log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
 
@@ -196,10 +201,15 @@ def timeoutDecorator(function):
 ##            if "__pub_fun" in kwargs:
 ##                log.debug("DGM junos wrapper no dev timeout skipping _pub_fun")
 ##                kwargs.pop("__pub_fun")
+            del_list = []
             for keychk in kwargs:
                 if keychk.startswith("__pub"):
-                    log.debug("DGM junos wrapper no dev timeout skipping '{0}'".format(keychk))
-                    kwargs.pop(keychk)
+                    log.debug("DGM junos wrapper no dev timeout - adding to del_list '{0}'".format(keychk))
+                    del_list.append(keychk)
+            if not del_list.empty:
+                for delkey in del_list:
+                    log.debug("DGM junos wrapper no dev timeout - removing key '{0}' from kwargs".format(delkey))
+                    kwargs.pop(delkey)
 
             log.debug("DGM junos wrapper no dev timeout revised kwargs '{0}'".format(kwargs))
             return function(*args, **kwargs)
