@@ -183,7 +183,7 @@ def timeoutDecorator(function):
                     if keychk.startswith("__pub"):
                         log.debug("DGM junos wrapper try - adding to del_list '{0}'".format(keychk))
                         del_list.append(keychk)
-                if not del_list.empty:
+                if not del_list:
                     for delkey in del_list:
                         log.debug("DGM junos wrapper try - removing key '{0}' from kwargs".format(delkey))
                         kwargs.pop(delkey)
@@ -206,7 +206,7 @@ def timeoutDecorator(function):
                 if keychk.startswith("__pub"):
                     log.debug("DGM junos wrapper no dev timeout - adding to del_list '{0}'".format(keychk))
                     del_list.append(keychk)
-            if not del_list.empty:
+            if not del_list:
                 for delkey in del_list:
                     log.debug("DGM junos wrapper no dev timeout - removing key '{0}' from kwargs".format(delkey))
                     kwargs.pop(delkey)
