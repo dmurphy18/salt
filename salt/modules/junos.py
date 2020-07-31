@@ -177,7 +177,7 @@ def timeoutDecorator(function):
                 log.debug("DGM junos wrapper try commit_check original kwargs '{0}'".format(kwargs))
                 if "__pub_fun" in kwargs:
                     log.debug("DGM junos wrapper try skipping _pub_fun")
-                    args.pop("__pub_fun")
+                    kwargs.pop("__pub_fun")
 
                 log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
 
@@ -191,7 +191,7 @@ def timeoutDecorator(function):
             log.debug("DGM junos wrapper no dev timeout commit_check original kwargs '{0}'".format(kwargs))
             if "__pub_fun" in kwargs:
                 log.debug("DGM junos wrapper no dev timeout skipping _pub_fun")
-                args.pop("__pub_fun")
+                kwargs.pop("__pub_fun")
 
             log.debug("DGM junos wrapper no dev timeout revised kwargs '{0}'".format(kwargs))
             return function(*args, **kwargs)
