@@ -175,9 +175,13 @@ def timeoutDecorator(function):
             conn.timeout = dev_timeout
             try:
                 log.debug("DGM junos wrapper try commit_check original kwargs '{0}'".format(kwargs))
-                if "__pub_fun" in kwargs:
-                    log.debug("DGM junos wrapper try skipping _pub_fun")
-                    kwargs.pop("__pub_fun")
+##                if "__pub_fun" in kwargs:
+##                    log.debug("DGM junos wrapper try skipping _pub_fun")
+##                    kwargs.pop("__pub_fun")
+                for keychk in kwargs:
+                    if keychk.startswith("__pub"):
+                        log.debug("DGM junos wrapper try skipping '{0}'".format(keychk))
+                        kwargs.pop(keychk)
 
                 log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
 
@@ -189,9 +193,13 @@ def timeoutDecorator(function):
                 raise
         else:
             log.debug("DGM junos wrapper no dev timeout commit_check original kwargs '{0}'".format(kwargs))
-            if "__pub_fun" in kwargs:
-                log.debug("DGM junos wrapper no dev timeout skipping _pub_fun")
-                kwargs.pop("__pub_fun")
+##            if "__pub_fun" in kwargs:
+##                log.debug("DGM junos wrapper no dev timeout skipping _pub_fun")
+##                kwargs.pop("__pub_fun")
+            for keychk in kwargs:
+                if keychk.startswith("__pub"):
+                    log.debug("DGM junos wrapper no dev timeout skipping '{0}'".format(keychk))
+                    kwargs.pop(keychk)
 
             log.debug("DGM junos wrapper no dev timeout revised kwargs '{0}'".format(kwargs))
             return function(*args, **kwargs)
