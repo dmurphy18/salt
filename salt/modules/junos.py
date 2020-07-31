@@ -174,6 +174,13 @@ def timeoutDecorator(function):
             kwargs["dev_timeout"] = dev_timeout
             conn.timeout = dev_timeout
             try:
+                log.debug("DGM junos wrapper try commit_check original kwargs '{0}'".format(kwargs))
+                if "__pub_fun" in kwargs:
+                    log.debug("DGM junos wrapper try skipping _pub_fun")
+                    args.pop("__pub_fun")
+
+                log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
+
                 result = function(*args, **kwargs)
                 conn.timeout = restore_timeout
                 return result
@@ -181,6 +188,12 @@ def timeoutDecorator(function):
                 conn.timeout = restore_timeout
                 raise
         else:
+            log.debug("DGM junos wrapper no dev timeout commit_check original kwargs '{0}'".format(kwargs))
+            if "__pub_fun" in kwargs:
+                log.debug("DGM junos wrapper no dev timeout skipping _pub_fun")
+                args.pop("__pub_fun")
+
+            log.debug("DGM junos wrapper no dev timeout revised kwargs '{0}'".format(kwargs))
             return function(*args, **kwargs)
 
     return wrapper
