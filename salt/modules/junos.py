@@ -174,22 +174,6 @@ def timeoutDecorator(function):
             kwargs["dev_timeout"] = dev_timeout
             conn.timeout = dev_timeout
             try:
-                log.debug("DGM junos wrapper try commit_check original kwargs '{0}'".format(kwargs))
-##                if "__pub_fun" in kwargs:
-##                    log.debug("DGM junos wrapper try skipping _pub_fun")
-##                    kwargs.pop("__pub_fun")
-                del_list = []
-                for keychk in kwargs:
-                    if keychk.startswith("__pub"):
-                        log.debug("DGM junos wrapper try - adding to del_list '{0}'".format(keychk))
-                        del_list.append(keychk)
-                if del_list:
-                    for delkey in del_list:
-                        log.debug("DGM junos wrapper try - removing key '{0}' from kwargs".format(delkey))
-                        kwargs.pop(delkey)
-
-                log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
-
                 result = function(*args, **kwargs)
                 conn.timeout = restore_timeout
                 return result
@@ -197,11 +181,54 @@ def timeoutDecorator(function):
                 conn.timeout = restore_timeout
                 raise
         else:
+            return function(*args, **kwargs)
+
+    return wrapper
+
+
+def timeoutDecorator_cleankwargs(function):
+    @wraps(function)
+    def wrapper(*args, **kwargs):
+        if "dev_timeout" in kwargs or "timeout" in kwargs:
+            dev_timeout = max(kwargs.pop("dev_timeout", 0), kwargs.pop("timeout", 0))
+            conn = __proxy__["junos.conn"]()
+            restore_timeout = conn.timeout
+            kwargs["dev_timeout"] = dev_timeout
+            conn.timeout = dev_timeout
+            try:
+                log.debug("DGM junos wrapper try commit_check original kwargs '{0}'".format(kwargs))
+                restore_kwargs = False
+                del_list = []
+                op = {}
+                op.update(kwargs)
+                for keychk in kwargs:
+                    if keychk.startswith("__pub"):
+                        log.debug("DGM junos wrapper try - adding to del_list '{0}'".format(keychk))
+                        del_list.append(keychk)
+                if del_list:
+                    restore_kwargs = True
+                    for delkey in del_list:
+                        log.debug("DGM junos wrapper try - removing key '{0}' from kwargs".format(delkey))
+                        kwargs.pop(delkey)
+
+                log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
+
+                result = function(*args, **kwargs)
+                if restore_kwargs:
+                    kwargs.update(op)
+                    log.debug("DGM junos wrapper try restored kwargs '{0}'".format(kwargs))
+
+                conn.timeout = restore_timeout
+                return result
+            except Exception:  # pylint: disable=broad-except
+                conn.timeout = restore_timeout
+                raise
+        else:
             log.debug("DGM junos wrapper no dev timeout commit_check original kwargs '{0}'".format(kwargs))
-##            if "__pub_fun" in kwargs:
-##                log.debug("DGM junos wrapper no dev timeout skipping _pub_fun")
-##                kwargs.pop("__pub_fun")
+            restore_kwargs = False
             del_list = []
+            op = {}
+            op.update(kwargs)
             for keychk in kwargs:
                 if keychk.startswith("__pub"):
                     log.debug("DGM junos wrapper no dev timeout - adding to del_list '{0}'".format(keychk))
@@ -212,7 +239,12 @@ def timeoutDecorator(function):
                     kwargs.pop(delkey)
 
             log.debug("DGM junos wrapper no dev timeout revised kwargs '{0}'".format(kwargs))
-            return function(*args, **kwargs)
+            ret = function(*args, **kwargs)
+            if restore_kwargs:
+                kwargs.update(op)
+                log.debug("DGM junos wrapper try restored kwargs '{0}'".format(kwargs))
+
+            return ret
 
     return wrapper
 
@@ -729,6 +761,7 @@ def diff(**kwargs):
     """
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
     ids_passed = 0
+    id_ = 0
     if "d_id" in kwargs:
         id_ = kwargs.pop("d_id")
         ids_passed = ids_passed + 1
