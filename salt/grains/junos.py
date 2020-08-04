@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 """
 Grains for junos.
+NOTE this is a little complicated--junos can only be accessed
+via salt-proxy-minion.Thus, some grains make sense to get them
+from the minion (PYTHONPATH), but others don't (ip_interfaces)
 """
 
 # Import Python libs
 from __future__ import absolute_import, print_function, unicode_literals
+
 import logging
 
 # Import Salt libs
 from salt.ext import six
 
+__proxyenabled__ = ["junos"]
 __virtualname__ = "junos"
 
 # Get looging started
@@ -47,8 +52,17 @@ def defaults():
 
 
 def facts(proxy=None):
-    if proxy is None:
-        return __proxy__["junos.get_serialized_facts"]()
+##     if proxy is None:
+##         return __proxy__["junos.get_serialized_facts"]()
+    if proxy:
+        proxy_junos_init = proxy["junos.initialized"]()
+    else:
+        proxy_junos_init = False
+
+    log.debug("DGM junos grains facts proxy '{0}', junos initialized '{1}'"
+            .format(proxy, proxy_junos_init))
+    if proxy is None or proxy_junos_init is False:
+        return {}
     return {"junos_facts": proxy["junos.get_serialized_facts"]()}
 
 

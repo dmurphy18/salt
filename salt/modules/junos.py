@@ -2248,10 +2248,11 @@ def dir_copy(source, dest, force=False, **kwargs):
 
     .. code-block:: bash
 
-        salt 'device_name' junos.dir_copy /var/db/scripts/jet /var/tmp
+        salt 'device_name' junos.dir_copy /etc/salt/pki re1:/
 
-    This will take the `jet` directory and copy it and its contents to /var/tmp.
-    The result will be `/var/tmp/jet/<files and dirs in /var/db/scripts/jet`.
+    This will take the `pki` directory, its absolute path and copy it and its
+    contents to routing engine 1 root directory. The result will be
+    `re1:/etc/salt/pki/<files and dirs in /etc/salt/pki`.
 
     """
     junos_cli = salt.utils.path.which("cli")
