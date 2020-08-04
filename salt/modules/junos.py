@@ -125,15 +125,30 @@ class HandleFileCopy:
                     else:
                         return local_cache_path
                 # continue for else part
-            self._cached_folder = tempfile.mkdtemp()
-            log.debug(
-                "Caching file {0} at {1}".format(self._file_path, self._cached_folder)
-            )
+##             self._cached_folder = tempfile.mkdtemp()
+##             log.debug(
+##                 "Caching file {0} at {1}".format(self._file_path, self._cached_folder)
+##             )
+##             if self._kwargs:
+##                 self._cached_file = __salt__["cp.get_template"](
+##                     self._file_path, self._cached_folder, **self._kwargs
+##                 )
+##             else:
+##                 self._cached_file = __salt__["cp.get_file"](
+##                     self._file_path, self._cached_folder
+##                 )
             if self._kwargs:
-                self._cached_file = __salt__["cp.get_template"](
-                    self._file_path, self._cached_folder, **self._kwargs
+                self._cached_file = salt.utils.files.mkstemp()
+                __salt__["cp.get_template"](
+                    self._file_path, self._cached_file, **self._kwargs
                 )
             else:
+                self._cached_folder = tempfile.mkdtemp()
+                log.debug(
+                    "Caching file {0} at {1}".format(
+                        self._file_path, self._cached_folder
+                    )
+                )
                 self._cached_file = __salt__["cp.get_file"](
                     self._file_path, self._cached_folder
                 )
@@ -234,6 +249,7 @@ def timeoutDecorator_cleankwargs(function):
                     log.debug("DGM junos wrapper no dev timeout - adding to del_list '{0}'".format(keychk))
                     del_list.append(keychk)
             if del_list:
+                restore_kwargs = True
                 for delkey in del_list:
                     log.debug("DGM junos wrapper no dev timeout - removing key '{0}' from kwargs".format(delkey))
                     kwargs.pop(delkey)
@@ -517,9 +533,9 @@ def set_hostname(hostname=None, **kwargs):
         try:
             conn.cu.rollback()
         except Exception as exception:  # pylint: disable=broad-except
-            __context__["junos_exception"] = False
             ret["out"] = False
             ret["message"] = "Successfully loaded host-name but rollback before exit failed '{0}'".format(exception)
+            _restart_connection()
 
     return ret
 
@@ -565,6 +581,7 @@ def commit(**kwargs):
         salt 'device_name' junos.commit dev_timeout=60 confirm=10
         salt 'device_name' junos.commit sync=True dev_timeout=90
     """
+
     conn = __proxy__["junos.conn"]()
     ret = {}
     op = dict()
@@ -1794,6 +1811,7 @@ def get_table(
         salt 'device_name' junos.get_table EthPortTable ethport.yml table_args='{"interface_name": "ge-3/2/2"}'
         salt 'device_name' junos.get_table EthPortTable ethport.yml salt://tables
     """
+
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
