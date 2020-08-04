@@ -260,7 +260,8 @@ def _restart_connection():
     log.debug("Junos exception occurred, restarted {0} (junos proxy)!".format(minion_id))
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def facts_refresh():
     """
     Reload the facts dictionary from the device. Usually only needed if,
@@ -1456,7 +1457,8 @@ def install_os(path=None, **kwargs):
     return ret
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def file_copy(src=None, dest=None):
     """
     Copies the file from the local device to the junos device
@@ -1496,7 +1498,8 @@ def file_copy(src=None, dest=None):
         return ret
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def lock():
     """
     Attempts an exclusive lock on the candidate configuration. This
@@ -1532,7 +1535,8 @@ def lock():
     return ret
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def unlock():
     """
     Unlocks the candidate configuration.
@@ -1713,7 +1717,8 @@ def load(path=None, **kwargs):
         return ret
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def commit_check():
     """
     Perform a commit check on the configuration
@@ -1738,7 +1743,8 @@ def commit_check():
     return ret
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def get_table(
     table,
     table_file,
