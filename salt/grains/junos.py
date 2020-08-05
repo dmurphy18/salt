@@ -50,10 +50,6 @@ def defaults():
     }
 
 
-def facts(proxy=None):
-    log.debug("DGM junos grains facts proxy '{0}'"
-    if proxy is None:
-        return __proxy__["junos.get_serialized_facts"]()
 ##    if proxy:
 ##        proxy_junos_init = proxy["junos.initialized"]()
 ##    else:
@@ -63,7 +59,12 @@ def facts(proxy=None):
 ##             .format(proxy, proxy_junos_init))
 ##     if proxy is None or proxy_junos_init is False:
 ##         return {}
-    log.debug("DGM junos grains facts proxy '{0}', returning junos_facts"
+
+def facts(proxy=None):
+    log.debug("DGM junos grains facts proxy '{0}'".format(proxy))
+    if proxy is None:
+        return __proxy__["junos.get_serialized_facts"]()
+    log.debug("DGM junos grains facts proxy '{0}', returning junos_facts".format(proxy))
     return {"junos_facts": proxy["junos.get_serialized_facts"]()}
 
 
