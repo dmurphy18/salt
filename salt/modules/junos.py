@@ -78,8 +78,10 @@ def __virtual__():
     in the opts dictionary
     """
     if HAS_JUNOS and "proxy" in __opts__:
+        log.debug("DGM modules junos  HAS_JUNOS '{0}' and __opts__ '{1}'".format(HAS_JUNOS, __opts__))
         return __virtualname__
     else:
+        log.debug("DGM modules junos failing to load")
         return (
             False,
             "The junos or dependent module could not be loaded: "

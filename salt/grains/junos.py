@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 
 
 def __virtual__():
+    log.debug("DGM grains junos __opts__ '{0}'".format(__opts__))
     if "proxy" not in __opts__:
         return False
     else:
