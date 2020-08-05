@@ -243,11 +243,13 @@ def proxytype():
 
 def get_serialized_facts():
     facts = dict(thisproxy["conn"].facts)
+    log.debug("DGM proxy/junos.py get_serialized_facts, facts '{0}'".format(facts))
     if "version_info" in facts:
         facts["version_info"] = dict(facts["version_info"])
     # For backward compatibility. 'junos_info' is present
     # only of in newer versions of facts.
     if "junos_info" in facts:
+        log.debug("DGM proxy/junos.py get_serialized_facts, facts contains junos_info")
         for re in facts["junos_info"]:
             facts["junos_info"][re]["object"] = dict(facts["junos_info"][re]["object"])
     return facts

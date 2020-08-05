@@ -47,22 +47,23 @@ def defaults():
         "os": "junos FIXME",
         "kernel": "junos FIXME",
         "osrelease": "junos FIXME",
-        "kernel": "junos FIXME",
     }
 
 
 def facts(proxy=None):
-##     if proxy is None:
-##         return __proxy__["junos.get_serialized_facts"]()
-    if proxy:
-        proxy_junos_init = proxy["junos.initialized"]()
-    else:
-        proxy_junos_init = False
-
-    log.debug("DGM junos grains facts proxy '{0}', junos initialized '{1}'"
-            .format(proxy, proxy_junos_init))
-    if proxy is None or proxy_junos_init is False:
-        return {}
+    log.debug("DGM junos grains facts proxy '{0}'"
+    if proxy is None:
+        return __proxy__["junos.get_serialized_facts"]()
+##    if proxy:
+##        proxy_junos_init = proxy["junos.initialized"]()
+##    else:
+##        proxy_junos_init = False
+## 
+##     log.debug("DGM junos grains facts proxy '{0}', junos initialized '{1}'"
+##             .format(proxy, proxy_junos_init))
+##     if proxy is None or proxy_junos_init is False:
+##         return {}
+    log.debug("DGM junos grains facts proxy '{0}', returning junos_facts"
     return {"junos_facts": proxy["junos.get_serialized_facts"]()}
 
 
