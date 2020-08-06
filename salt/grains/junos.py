@@ -10,6 +10,7 @@ from the minion (PYTHONPATH), but others don't (ip_interfaces)
 from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
+import os
 
 ## DGM
 import inspect
@@ -74,7 +75,7 @@ def facts(proxy=None):
     log.debug("DGM grains junos facts proxy '{0}', junos initialized '{1}'"
             .format(proxy, proxy_junos_initialized))
     if proxy is None or proxy_junos_initialized is False:
-       return {}
+        return {}
 
     log.debug("DGM grains junos facts proxy '{0}', returning junos_facts".format(proxy))
 ##    return {"junos_facts": proxy["junos.get_serialized_facts"]()}
