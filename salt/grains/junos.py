@@ -49,32 +49,43 @@ def _remove_complex_types(dictionary):
 
 
 def defaults():
-    return {
-        "os": "junos FIXME",
-        "kernel": "junos FIXME",
-        "osrelease": "junos FIXME",
-    }
+    if os.path.exists("/var/db/scripts/jet"):
+        return {
+            "os": "junos",
+            "kernel": "junos",
+            "osrelease": "junos FIXME",
+        }
+    else:
+        return {"os": "proxy", "kernel": "unknown", "osrelease": "proxy"}
 
-
-##    if proxy:
-##        proxy_junos_init = proxy["junos.initialized"]()
-##    else:
-##        proxy_junos_init = False
-## 
-##     log.debug("DGM grains junos facts proxy '{0}', junos initialized '{1}'"
-##             .format(proxy, proxy_junos_init))
-##     if proxy is None or proxy_junos_init is False:
-##         return {}
 
 def facts(proxy=None):
     log.debug("DGM grains junos facts proxy '{0}'".format(proxy))
 
     log.debug("DGM grains junos facts stackframe '{0}'".format(inspect.stack()))
 
-    if proxy is None:
-        return __proxy__["junos.get_serialized_facts"]()
+##    if proxy is None:
+##        log.debug("DGM grains junos facts proxy '{0}', returning __proxy_ junos get serialized facts".format(proxy))
+##        return __proxy__["junos.get_serialized_facts"]()
+    proxy_junos_initialized = False
+    if proxy:
+        proxy_junos_initialized = proxy["junos.initialized"]()
+
+    log.debug("DGM grains junos facts proxy '{0}', junos initialized '{1}'"
+            .format(proxy, proxy_junos_initialized))
+    if proxy is None or proxy_junos_initialized is False:
+       return {}
+
     log.debug("DGM grains junos facts proxy '{0}', returning junos_facts".format(proxy))
-    return {"junos_facts": proxy["junos.get_serialized_facts"]()}
+##    return {"junos_facts": proxy["junos.get_serialized_facts"]()}
+    ret_value = proxy["junos.get_serialized_facts"]()
+    if os.path.exists("/var/db/scripts/jet"):
+        ret = {"junos_facts": ret_value, "osrelease": ret_value["version"]}
+    else:
+        ret = {"junos_facts": ret_value}
+    log.debug("DGM grains junos facts proxy '{0}', returning junos_facts dict '{1}'".format(proxy, ret))
+
+    return ret
 
 
 def os_family():
