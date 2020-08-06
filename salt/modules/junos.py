@@ -36,6 +36,7 @@ import salt.utils.args
 import salt.utils.files
 import salt.utils.path
 import salt.utils.json
+import salt.utils.platform
 import salt.utils.stringutils
 from salt.ext import six
 
@@ -127,18 +128,6 @@ class HandleFileCopy:
                     else:
                         return local_cache_path
                 # continue for else part
-##             self._cached_folder = tempfile.mkdtemp()
-##             log.debug(
-##                 "Caching file {0} at {1}".format(self._file_path, self._cached_folder)
-##             )
-##             if self._kwargs:
-##                 self._cached_file = __salt__["cp.get_template"](
-##                     self._file_path, self._cached_folder, **self._kwargs
-##                 )
-##             else:
-##                 self._cached_file = __salt__["cp.get_file"](
-##                     self._file_path, self._cached_folder
-##                 )
             if self._kwargs:
                 self._cached_file = salt.utils.files.mkstemp()
                 __salt__["cp.get_template"](
@@ -1480,6 +1469,8 @@ def install_os(path=None, **kwargs):
 @timeoutDecorator_cleankwargs
 def file_copy(src=None, dest=None):
     """
+    NOTE This function does not work on Juniper native minions
+
     Copies the file from the local device to the junos device
 
     src
@@ -1494,6 +1485,14 @@ def file_copy(src=None, dest=None):
 
         salt 'device_name' junos.file_copy /home/m2/info.txt info_copy.txt
     """
+    if salt.utils.platform.is_proxy():
+        log.debug("DGM modules junos file_copy thinks it is on PROXY")
+    else:
+        log.debug("DGM modules junos file_copy say NO PROXY")
+
+    if not salt.utils.platform.is_native_minion():
+        return {"success": False, "message": "This method is unsupported on the current operating system!"}
+
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -2072,6 +2071,8 @@ def file_compare(file1, file2, **kwargs):
         success:
             True
     """
+    if salt.utils.platform.is_native_minion():
+        return {"success": False, "message": "This method is unsupported on the current operating system!"}
 
     ret = {"message": "", "identical": False, "success": True}
 
@@ -2121,6 +2122,9 @@ def fsentry_exists(dir, **kwargs):
             True
 
     """
+    if salt.utils.platform.is_native_minion():
+        return {"success": False, "message": "This method is unsupported on the current operating system!"}
+
     junos_cli = salt.utils.path.which("cli")
     if not junos_cli:
         return {"success": False, "message": "Cannot find Junos cli command"}
@@ -2257,6 +2261,9 @@ def dir_copy(source, dest, force=False, **kwargs):
     `re1:/etc/salt/pki/<files and dirs in /etc/salt/pki`.
 
     """
+    if salt.utils.platform.is_native_minion():
+        return {"success": False, "message": "This method is unsupported on the current operating system!"}
+
     junos_cli = salt.utils.path.which("cli")
     if not junos_cli:
         return {"success": False, "message": "Cannot find Junos cli command"}

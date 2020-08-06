@@ -189,3 +189,15 @@ def is_fedora():
     (osname, osrelease, oscodename) = \
         [x.strip('"').strip("'") for x in linux_distribution()]
     return osname == 'Fedora'
+
+
+@real_memoize
+def is_native_minion():
+    '''
+    Simple function to return if host is Nativer Minio or not
+    '''
+    if is_junos():
+        if os.path.exists("/var/db/scripts/jet"):
+            return True
+
+    return False

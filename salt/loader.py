@@ -884,7 +884,6 @@ def grains(opts, force_refresh=False, proxy=None):
             if 'grains' in parameters:
                 kwargs['grains'] = grains_data
             ret = funcs[key](**kwargs)
-            log.debug("DGM loader grains loaded key '{0}', kwargs '{1}', ret '{2}'".format(key, kwargs, ret))
         except Exception:  # pylint: disable=broad-except
             if salt.utils.platform.is_proxy():
                 log.info('The following CRITICAL message may not be an error; the proxy may not be completely established yet.')
@@ -958,7 +957,6 @@ def grains(opts, force_refresh=False, proxy=None):
         salt.utils.dictupdate.update(grains_data, opts['grains'])
     else:
         grains_data.update(opts['grains'])
-    log.debug("DGM loader grains exit, returning '{0}'".format(salt.utils.data.decode(grains_data, preserve_tuples=True)))
     return salt.utils.data.decode(grains_data, preserve_tuples=True)
 
 
