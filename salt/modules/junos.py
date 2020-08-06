@@ -79,10 +79,8 @@ def __virtual__():
     in the opts dictionary
     """
     if HAS_JUNOS and "proxy" in __opts__:
-        log.debug("DGM modules junos  HAS_JUNOS '{0}' and __opts__ '{1}'".format(HAS_JUNOS, __opts__))
         return __virtualname__
     else:
-        log.debug("DGM modules junos failing to load")
         return (
             False,
             "The junos or dependent module could not be loaded: "
@@ -202,27 +200,21 @@ def timeoutDecorator_cleankwargs(function):
             kwargs["dev_timeout"] = dev_timeout
             conn.timeout = dev_timeout
             try:
-                log.debug("DGM junos wrapper try commit_check original kwargs '{0}'".format(kwargs))
                 restore_kwargs = False
                 del_list = []
                 op = {}
                 op.update(kwargs)
                 for keychk in kwargs:
                     if keychk.startswith("__pub"):
-                        log.debug("DGM junos wrapper try - adding to del_list '{0}'".format(keychk))
                         del_list.append(keychk)
                 if del_list:
                     restore_kwargs = True
                     for delkey in del_list:
-                        log.debug("DGM junos wrapper try - removing key '{0}' from kwargs".format(delkey))
                         kwargs.pop(delkey)
-
-                log.debug("DGM junos wrapper try revised kwargs '{0}'".format(kwargs))
 
                 result = function(*args, **kwargs)
                 if restore_kwargs:
                     kwargs.update(op)
-                    log.debug("DGM junos wrapper try restored kwargs '{0}'".format(kwargs))
 
                 conn.timeout = restore_timeout
                 return result
@@ -230,26 +222,21 @@ def timeoutDecorator_cleankwargs(function):
                 conn.timeout = restore_timeout
                 raise
         else:
-            log.debug("DGM junos wrapper no dev timeout commit_check original kwargs '{0}'".format(kwargs))
             restore_kwargs = False
             del_list = []
             op = {}
             op.update(kwargs)
             for keychk in kwargs:
                 if keychk.startswith("__pub"):
-                    log.debug("DGM junos wrapper no dev timeout - adding to del_list '{0}'".format(keychk))
                     del_list.append(keychk)
             if del_list:
                 restore_kwargs = True
                 for delkey in del_list:
-                    log.debug("DGM junos wrapper no dev timeout - removing key '{0}' from kwargs".format(delkey))
                     kwargs.pop(delkey)
 
-            log.debug("DGM junos wrapper no dev timeout revised kwargs '{0}'".format(kwargs))
             ret = function(*args, **kwargs)
             if restore_kwargs:
                 kwargs.update(op)
-                log.debug("DGM junos wrapper try restored kwargs '{0}'".format(kwargs))
 
             return ret
 
@@ -1485,12 +1472,7 @@ def file_copy(src=None, dest=None):
 
         salt 'device_name' junos.file_copy /home/m2/info.txt info_copy.txt
     """
-    if salt.utils.platform.is_proxy():
-        log.debug("DGM modules junos file_copy thinks it is on PROXY")
-    else:
-        log.debug("DGM modules junos file_copy say NO PROXY")
-
-    if not salt.utils.platform.is_native_minion():
+    if not salt.utils.platform.is_proxy():
         return {"success": False, "message": "This method is unsupported on the current operating system!"}
 
     conn = __proxy__["junos.conn"]()
@@ -2071,7 +2053,7 @@ def file_compare(file1, file2, **kwargs):
         success:
             True
     """
-    if salt.utils.platform.is_native_minion():
+    if salt.utils.platform.is_proxy():
         return {"success": False, "message": "This method is unsupported on the current operating system!"}
 
     ret = {"message": "", "identical": False, "success": True}
@@ -2122,7 +2104,7 @@ def fsentry_exists(dir, **kwargs):
             True
 
     """
-    if salt.utils.platform.is_native_minion():
+    if salt.utils.platform.is_proxy():
         return {"success": False, "message": "This method is unsupported on the current operating system!"}
 
     junos_cli = salt.utils.path.which("cli")
@@ -2261,7 +2243,7 @@ def dir_copy(source, dest, force=False, **kwargs):
     `re1:/etc/salt/pki/<files and dirs in /etc/salt/pki`.
 
     """
-    if salt.utils.platform.is_native_minion():
+    if salt.utils.platform.is_proxy():
         return {"success": False, "message": "This method is unsupported on the current operating system!"}
 
     junos_cli = salt.utils.path.which("cli")

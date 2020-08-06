@@ -45,14 +45,14 @@ def _remove_complex_types(dictionary):
 
 
 def defaults():
-    if salt.utils.platform.is_native_minion():
+    if salt.utils.platform.is_proxy():
+        return {"os": "proxy", "kernel": "unknown", "osrelease": "proxy"}
+    else:
         return {
             "os": "junos",
             "kernel": "junos",
             "osrelease": "junos FIXME",
         }
-    else:
-        return {"os": "proxy", "kernel": "unknown", "osrelease": "proxy"}
 
 
 def facts(proxy=None):
@@ -60,10 +60,10 @@ def facts(proxy=None):
         return {}
 
     ret_value = proxy["junos.get_serialized_facts"]()
-    if salt.utils.platform.is_native_minion():
-        ret = {"junos_facts": ret_value, "osrelease": ret_value["version"]}
-    else:
+    if salt.utils.platform.is_proxy():
         ret = {"junos_facts": ret_value}
+    else:
+        ret = {"junos_facts": ret_value, "osrelease": ret_value["version"]}
 
     return ret
 
