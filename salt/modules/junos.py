@@ -1268,7 +1268,8 @@ def install_config(path=None, **kwargs):
         return ret
 
 
-@timeoutDecorator
+## @timeoutDecorator
+@timeoutDecorator_cleankwargs
 def zeroize():
     """
     Resets the device to default factory settings
