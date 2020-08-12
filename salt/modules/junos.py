@@ -1449,7 +1449,14 @@ def install_os(path=None, **kwargs):
             reboot_kwargs["all_re"] = op.get("all_re")
         log.debug("DGM install_os reboot True, reboot_kwargs '{0}'".format(reboot_kwargs))
         try:
-            conn.sw.reboot(**reboot_kwargs)
+            ## trying reset of connection after install to get past  exception
+            ## 'PyMemoryView_FromBuffer(): info->buf must not be NULL'
+            ##            conn.sw.reboot(**reboot_kwargs)
+
+            sw = SW(conn)
+            shut = sw.reboot
+            shut(**reboot_kwargs)
+
         except Exception as exception:  # pylint: disable=broad-except
             ret[
                 "message"
