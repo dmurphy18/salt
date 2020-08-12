@@ -1421,16 +1421,19 @@ def install_os(path=None, **kwargs):
                 return ret
     else:
         try:
-            log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}'".format(path, install_status))
+            log.debug("DGM install_os no_copy_ True, path '{0}', install_status '{1}' before call install".format(path, install_status))
             install_status = conn.sw.install(path, progress=True, timeout=timeout, **op)
-            log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}'".format(path, install_status))
+            log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}' after calling install".format(path, install_status))
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "Installation failed due to: '{0}'".format(exception)
             ret["out"] = False
             _restart_connection()
             return ret
 
-    if install_status is True:
+    # install_status is a tuple (False|True, message)
+    log.debug("DGM install_os test install_status tuple 0 position '{0}'".format(install_status[0]))
+
+    if install_status[0] is True:
         ret["message"] = "Installed the os."
     else:
         ret["message"] = "Installation failed."
