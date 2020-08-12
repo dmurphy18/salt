@@ -1452,22 +1452,27 @@ def install_os(path=None, **kwargs):
             ## trying reset of connection after install to get past  exception
             ## 'PyMemoryView_FromBuffer(): info->buf must not be NULL'
             ##            conn.sw.reboot(**reboot_kwargs)
-            log.debug("DGM install_os reboot True, reboot_kwargs '{0}' restart connection first".format(reboot_kwargs))
-            _restart_connection()
-            log.debug("DGM install_os reboot True, reboot_kwargs '{0}' after restart connection".format(reboot_kwargs))
+            ## log.debug("DGM install_os reboot True, reboot_kwargs '{0}' restart connection first".format(reboot_kwargs))
+            ## _restart_connection()
+            ## log.debug("DGM install_os reboot True, reboot_kwargs '{0}' after restart connection".format(reboot_kwargs))
 
-            sw = SW(conn)
+            ## sw = SW(conn)
 
-            log.debug("DGM install_os reboot True, post SW conn")
+            ## log.debug("DGM install_os reboot True, post SW conn")
 
-            shut = sw.reboot
+            ## shut = sw.reboot
 
-            log.debug("DGM install_os reboot True, got sw.reboot")
+            ## log.debug("DGM install_os reboot True, got sw.reboot")
 
-            ## shut(**reboot_kwargs)
-            shut()
+            ## ## shut(**reboot_kwargs)
+            ## shut()
 
-            log.debug("DGM install_os reboot True, post SW shut")
+            ## log.debug("DGM install_os reboot True, post SW shut")
+
+            log.debug("DGM install_os reboot True, pre conn.sw.reboot")
+            ## conn.sw.reboot(**reboot_kwargs)
+            conn.sw.reboot()
+            log.debug("DGM install_os reboot True, post conn.sw.reboot")
 
         except Exception as exception:  # pylint: disable=broad-except
             ret[
