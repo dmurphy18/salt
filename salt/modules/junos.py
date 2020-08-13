@@ -1475,7 +1475,7 @@ def install_os(path=None, **kwargs):
 
             log.debug("DGM install_os reboot True, pre conn.sw.reboot")
             ## conn.sw.reboot(**reboot_kwargs)
-            conn.sw.reboot(at='now', in_min=0, all_re=True, on_node=None, vmhost=False, other_Re=False)
+            conn.sw.reboot(at='now', in_min=0, all_re=True, on_node=None, vmhost=False, other_re=False)
             log.debug("DGM install_os reboot True, post conn.sw.reboot")
 
         except Exception as exception:  # pylint: disable=broad-except
