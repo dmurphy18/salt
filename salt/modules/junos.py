@@ -1413,8 +1413,11 @@ def install_os(path=None, **kwargs):
                 # If its native minion running on Junos, pyez dont need to SCP file
                 # hence setting no_copy as True, HandleFileCopy already copied file
                 # from master to Junos
+                tmp_absfile = image_path
                 op["no_copy"] = True
-                log.debug("DGM install_os no_copy_ False, but on native minion, setting no_copy to True, image_path '{0}', op '{1}'".format(image_path, op))
+                op["remote_path"] = os.path.dirname(tmp_absfile)
+                image_path = os.path.basename(tmp_absfile)
+                log.debug("DGM install_os no_copy_ False, but on native minion, setting no_copy to True, tmp_absfile '{0}', image_path '{1}', op '{2}'".format(tmp_absfile, image_path, op))
             try:
                 install_status, install_message = conn.sw.install(
                     image_path, progress=True, timeout=timeout, **op
@@ -1459,23 +1462,17 @@ def install_os(path=None, **kwargs):
             ## log.debug("DGM install_os reboot True, reboot_kwargs '{0}' restart connection first".format(reboot_kwargs))
             ## _restart_connection()
             ## log.debug("DGM install_os reboot True, reboot_kwargs '{0}' after restart connection".format(reboot_kwargs))
-
             ## sw = SW(conn)
-
             ## log.debug("DGM install_os reboot True, post SW conn")
-
             ## shut = sw.reboot
-
             ## log.debug("DGM install_os reboot True, got sw.reboot")
-
             ## ## shut(**reboot_kwargs)
             ## shut()
-
             ## log.debug("DGM install_os reboot True, post SW shut")
 
             log.debug("DGM install_os reboot True, pre conn.sw.reboot")
             ## conn.sw.reboot(**reboot_kwargs)
-            conn.sw.reboot(at='now', in_min=0, all_re=True, on_node=None, vmhost=False, other_re=False)
+            conn.sw.reboot(in_min=0)
             log.debug("DGM install_os reboot True, post conn.sw.reboot")
 
         except ConnectClosedError as connclosed:  # pylint: disable=broad-except
