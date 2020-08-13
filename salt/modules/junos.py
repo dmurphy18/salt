@@ -1427,7 +1427,6 @@ def install_os(path=None, **kwargs):
                 return ret
     else:
         try:
-            log.debug("DGM install_os no_copy_ True, path '{0}', install_status '{1}', install_message '{2}' before call install".format(path, install_status, install_message))
             install_status, install_message = conn.sw.install(path, progress=True, timeout=timeout, **op)
             log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}', install_message '{2}' after calling install".format(path, install_status, install_message))
         except Exception as exception:  # pylint: disable=broad-except
