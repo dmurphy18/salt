@@ -1478,13 +1478,18 @@ def install_os(path=None, **kwargs):
             conn.sw.reboot(at='now', in_min=0, all_re=True, on_node=None, vmhost=False, other_re=False)
             log.debug("DGM install_os reboot True, post conn.sw.reboot")
 
+        except ConnectClosedError as connclosed:  # pylint: disable=broad-except
+            log.debug("DGM install_os reboot True, post conn.sw.reboot ConnectClosedError exception '{0}'".format(connclosed))
+
         except Exception as exception:  # pylint: disable=broad-except
+            log.debug("DGM install_os reboot True, post conn.sw.reboot exception '{0}'".format(exception))
             ret[
                 "message"
             ] = "Installation successful but reboot failed due to : '{0}'".format(
                 exception
             )
             ret["out"] = False
+            log.debug("DGM install_os reboot True, post conn.sw.reboot exception, restarting connection")
             _restart_connection()
             return ret
 
