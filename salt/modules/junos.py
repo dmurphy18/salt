@@ -1409,11 +1409,17 @@ def install_os(path=None, **kwargs):
                 ret["message"] = "Invalid path. Please provide a valid image path"
                 ret["out"] = False
                 return ret
+            if not salt.utils.platform.is_proxy():
+                # If its native minion running on Junos, pyez dont need to SCP file
+                # hence setting no_copy as True, HandleFileCopy already copied file
+                # from master to Junos
+                op["no_copy"] = True
+                log.debug("DGM install_os no_copy_ False, but on native minion, setting no_copy to True, image_path '{0}', op '{1}'".format(image_path, op))
             try:
-                install_status = conn.sw.install(
+                install_status, install_message = conn.sw.install(
                     image_path, progress=True, timeout=timeout, **op
                 )
-                log.debug("DGM install_os no_copy_ False, image_path '{0}', returned install_status '{1}'".format(image_path, install_status))
+                log.debug("DGM install_os no_copy_ False, image_path '{0}', returned install_status '{1}', install_message" '{2}'.format(image_path, install_status, install_message))
             except Exception as exception:  # pylint: disable=broad-except
                 ret["message"] = "Installation failed due to: '{0}'".format(exception)
                 ret["out"] = False
@@ -1421,22 +1427,21 @@ def install_os(path=None, **kwargs):
                 return ret
     else:
         try:
-            log.debug("DGM install_os no_copy_ True, path '{0}', install_status '{1}' before call install".format(path, install_status))
-            install_status = conn.sw.install(path, progress=True, timeout=timeout, **op)
-            log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}' after calling install".format(path, install_status))
+            log.debug("DGM install_os no_copy_ True, path '{0}', install_status '{1}', install_message '{2}' before call install".format(path, install_status, install_message))
+            install_status, install_message = conn.sw.install(path, progress=True, timeout=timeout, **op)
+            log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}', install_message '{2}' after calling install".format(path, install_status, install_message))
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "Installation failed due to: '{0}'".format(exception)
             ret["out"] = False
             _restart_connection()
             return ret
 
-    # install_status is a tuple (False|True, message)
-    log.debug("DGM install_os test install_status tuple 0 position '{0}'".format(install_status[0]))
+    log.debug("DGM install_os test install_status '{0}'".format(install_status))
 
-    if install_status[0] is True:
+    if install_status is True:
         ret["message"] = "Installed the os."
     else:
-        ret["message"] = "Installation failed."
+        ret["message"] = "Installation failed. Reason: {0}".format(install_message)
         ret["out"] = False
         return ret
 
@@ -1471,7 +1476,7 @@ def install_os(path=None, **kwargs):
 
             log.debug("DGM install_os reboot True, pre conn.sw.reboot")
             ## conn.sw.reboot(**reboot_kwargs)
-            conn.sw.reboot()
+            conn.sw.reboot(at='now', in_min=0, all_re=True, on_node=None, vmhost=False, other_Re=False)
             log.debug("DGM install_os reboot True, post conn.sw.reboot")
 
         except Exception as exception:  # pylint: disable=broad-except
