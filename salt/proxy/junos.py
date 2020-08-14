@@ -71,6 +71,7 @@ log = logging.getLogger(__name__)
 # Define the module's virtual name
 __virtualname__ = "junos"
 
+_reboot_shutdown = False
 
 def __virtual__():
     """
@@ -160,6 +161,18 @@ def initialized():
 
 def conn():
     return thisproxy["conn"]
+
+
+def reboot_active():
+    _reboot_shutdown = True
+
+
+def reboot_clear():
+    _reboot_shutdown = False
+
+
+def get_reboot_active():
+    return _reboot_shutdown
 
 
 def alive(opts):
