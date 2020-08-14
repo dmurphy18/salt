@@ -71,7 +71,7 @@ log = logging.getLogger(__name__)
 # Define the module's virtual name
 __virtualname__ = "junos"
 
-_reboot_shutdown = False
+__reboot_shutdown = False
 
 def __virtual__():
     """
@@ -164,15 +164,15 @@ def conn():
 
 
 def reboot_active():
-    _reboot_shutdown = True
+    __reboot_shutdown = True
 
 
 def reboot_clear():
-    _reboot_shutdown = False
+    __reboot_shutdown = False
 
 
 def get_reboot_active():
-    return _reboot_shutdown
+    return __reboot_shutdown
 
 
 def alive(opts):
@@ -189,6 +189,7 @@ def alive(opts):
     thisproxy["conn"].connected = ping()
     local_connected = dev.connected
     if not local_connected:
+        log.debug("DGM proxy junos alive firing event.fire_master")
         __salt__["event.fire_master"](
             {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
         )

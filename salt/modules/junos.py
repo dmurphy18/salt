@@ -1470,21 +1470,24 @@ def install_os(path=None, **kwargs):
             ## shut()
             ## log.debug("DGM install_os reboot True, post SW shut")
 
-            log.debug("DGM install_os reboot True, pre conn.sw.reboot")
             ## conn.sw.reboot(**reboot_kwargs)
 
             __proxy__["junos.reboot_active"]()
+            log.debug("DGM install_os reboot True, pre conn.sw.reboot, reboot_active flag '{1}'".format(__proxy__["junos.get_reboot_active"]()))
             conn.sw.reboot(in_min=0)
             log.debug("DGM install_os reboot True, post conn.sw.reboot")
             __proxy__["junos.reboot_clear"]()
+            log.debug("DGM install_os reboot True, post conn.sw.reboot, reboot_active flag '{1}'".format(__proxy__["junos.get_reboot_active"]()))
 
         except ConnectClosedError as connclosed:  # pylint: disable=broad-except
             log.debug("DGM install_os reboot True, post conn.sw.reboot ConnectClosedError exception '{0}'".format(connclosed))
             __proxy__["junos.reboot_clear"]()
+            log.debug("DGM install_os reboot True, post conn.sw.reboot, reboot_active flag '{1}'".format(__proxy__["junos.get_reboot_active"]()))
 
         except Exception as exception:  # pylint: disable=broad-except
             log.debug("DGM install_os reboot True, post conn.sw.reboot exception '{0}'".format(exception))
             __proxy__["junos.reboot_clear"]()
+            log.debug("DGM install_os reboot True, post conn.sw.reboot, reboot_active flag '{1}'".format(__proxy__["junos.get_reboot_active"]()))
             ret[
                 "message"
             ] = "Installation successful but reboot failed due to : '{0}'".format(
