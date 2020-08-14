@@ -1714,6 +1714,7 @@ def proxy_reconnect(proxy_name, opts=None):
 
         salt '*' status.proxy_reconnect rest_sample
     '''
+    log.debug("DGM proxy_reconnect entry")
 
     if not opts:
         opts = __opts__

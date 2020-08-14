@@ -168,6 +168,7 @@ def alive(opts):
 
     .. versionadded:: 2018.3.0
     """
+    log.debug("DGM proxy junos alive entry")
 
     dev = conn()
 
