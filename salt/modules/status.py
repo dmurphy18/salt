@@ -1732,9 +1732,9 @@ def proxy_reconnect(proxy_name, opts=None):
         log.debug("DGM proxy_reconnect not is_alive, reboot_active flag '{0}'".format(__proxy__[proxy_name+'.get_reboot_active']()))
         minion_id = opts.get('proxyid', '') or opts.get('id', '')
         if __proxy__[proxy_name+'.get_reboot_active']():
-            log.info('%s (%s proxy) is rebooting or shutting down. Not restarting.', minion_id, proxy_name)
-            __proxy__[proxy_name+'.shutdown'](opts)  # safely close connection
-            log.debug('Closed connection %s (%s proxy)!', minion_id, proxy_name)
+            log.info('%s (%s proxy) is rebooting or shutting down. Not closing or restarting.', minion_id, proxy_name)
+##            __proxy__[proxy_name+'.shutdown'](opts)  # safely close connection
+##            log.debug('Closed connection %s (%s proxy)!', minion_id, proxy_name)
         else:
             log.info('%s (%s proxy) is down. Restarting.', minion_id, proxy_name)
             __proxy__[proxy_name+'.shutdown'](opts)  # safely close connection
