@@ -71,7 +71,9 @@ log = logging.getLogger(__name__)
 
 class RebootActive:
     """
-        Class to get statice variable
+        Class to get static variable, to indicate when a reboot/shutdown
+        is being processed and the keep_alive should not probe the
+        connection since it interferes with the shutdown process.
     """
     reboot_shutdown = False
 
@@ -81,6 +83,7 @@ class RebootActive:
 
 # Define the module's virtual name
 __virtualname__ = "junos"
+
 
 def __virtual__():
     """
@@ -174,15 +177,13 @@ def conn():
 
 def reboot_active():
     RebootActive.reboot_shutdown = True
-    log.debug("DGM reboot_active '{0}'".format(RebootActive.reboot_shutdown))
+
 
 def reboot_clear():
     RebootActive.reboot_shutdown = False
-    log.debug("DGM reboot_clear '{0}'".format(RebootActive.reboot_shutdown))
 
 
 def get_reboot_active():
-    log.debug("DGM get_reboot_active '{0}'".format(RebootActive.reboot_shutdown))
     return RebootActive.reboot_shutdown
 
 
@@ -192,15 +193,12 @@ def alive(opts):
 
     .. versionadded:: 2018.3.0
     """
-    log.debug("DGM proxy junos alive entry")
-
     dev = conn()
 
     ## check if SessionListener sets a TransportError if there is a RpcTimeoutError
     thisproxy["conn"].connected = ping()
     local_connected = dev.connected
     if not local_connected:
-        log.debug("DGM proxy junos alive firing event.fire_master")
         __salt__["event.fire_master"](
             {}, "junos/proxy/{0}/stop".format(opts["proxy"]["host"])
         )

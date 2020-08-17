@@ -1367,8 +1367,6 @@ def install_os(path=None, **kwargs):
         salt 'device_name' junos.install_os 'salt://images/junos_image.tgz' reboot=True
         salt 'device_name' junos.install_os 'salt://junos_16_1.tgz' dev_timeout=300
     """
-    log.debug("DGM install_os entry")
-
     conn = __proxy__["junos.conn"]()
     ret = {}
     ret["out"] = True
@@ -1392,8 +1390,6 @@ def install_os(path=None, **kwargs):
     reboot = op.pop("reboot", False)
     no_copy_ = op.get("no_copy", False)
 
-    log.debug("DGM install_os params path '{0}', reboot '{1}', no_copy_ '{2}', op '{3}".format(path, reboot, no_copy_, op))
-
     if path is None:
         ret[
             "message"
@@ -1402,13 +1398,14 @@ def install_os(path=None, **kwargs):
         return ret
 
     if reboot:
-        #  flag reboot actice, disables proxy_reconnect
+        #  flag reboot active, disables proxy_reconnect since it's probing
+        # of connection interferes with the reboot, especially with a
+        # package install (time taken to xfer package and install)
         __proxy__["junos.reboot_active"]()
 
     install_status = False
     if not no_copy_:
         with HandleFileCopy(path) as image_path:
-            log.debug("DGM install_os no_copy_ False, image_path '{0}'".format(image_path))
             if image_path is None:
                 ret["message"] = "Invalid path. Please provide a valid image path"
                 ret["out"] = False
@@ -1422,12 +1419,10 @@ def install_os(path=None, **kwargs):
                 op["no_copy"] = True
                 op["remote_path"] = os.path.dirname(tmp_absfile)
                 image_path = os.path.basename(tmp_absfile)
-                log.debug("DGM install_os no_copy_ False, but on native minion, setting no_copy to True, tmp_absfile '{0}', image_path '{1}', op '{2}'".format(tmp_absfile, image_path, op))
             try:
                 install_status, install_message = conn.sw.install(
                     image_path, progress=True, timeout=timeout, **op
                 )
-                log.debug("DGM install_os no_copy_ False, image_path '{0}', returned install_status '{1}', install_message" '{2}'.format(image_path, install_status, install_message))
             except Exception as exception:  # pylint: disable=broad-except
                 ret["message"] = "Installation failed due to: '{0}'".format(exception)
                 ret["out"] = False
@@ -1437,15 +1432,12 @@ def install_os(path=None, **kwargs):
     else:
         try:
             install_status, install_message = conn.sw.install(path, progress=True, timeout=timeout, **op)
-            log.debug("DGM install_os no_copy_ True, path '{0}', returned install_status '{1}', install_message '{2}' after calling install".format(path, install_status, install_message))
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "Installation failed due to: '{0}'".format(exception)
             ret["out"] = False
             __proxy__["junos.reboot_clear"]()
             _restart_connection()
             return ret
-
-    log.debug("DGM install_os test install_status '{0}'".format(install_status))
 
     if install_status is True:
         ret["message"] = "Installed the os."
@@ -1462,38 +1454,23 @@ def install_os(path=None, **kwargs):
             reboot_kwargs["vmhost"] = True
         if "all_re" in op:
             reboot_kwargs["all_re"] = op.get("all_re")
-        log.debug("DGM install_os reboot True, reboot_kwargs '{0}'".format(reboot_kwargs))
         try:
             __proxy__["junos.reboot_active"]()
-            log.debug("DGM install_os reboot True, pre conn.sw.reboot, reboot_active flag '{0}'".format(__proxy__["junos.get_reboot_active"]()))
-            ## conn.sw.reboot(in_min=1)
             conn.sw.reboot(**reboot_kwargs)
-            log.debug("DGM install_os reboot True, post conn.sw.reboot")
-            __proxy__["junos.reboot_clear"]()
-            log.debug("DGM install_os reboot True, post conn.sw.reboot, reboot_active flag '{0}'".format(__proxy__["junos.get_reboot_active"]()))
-
-        except ConnectClosedError as connclosed:  # pylint: disable=broad-except
-            log.debug("DGM install_os reboot True, post conn.sw.reboot ConnectClosedError exception '{0}'".format(connclosed))
-            __proxy__["junos.reboot_clear"]()
-            log.debug("DGM install_os reboot True, post conn.sw.reboot, reboot_active flag '{0}'".format(__proxy__["junos.get_reboot_active"]()))
-
         except Exception as exception:  # pylint: disable=broad-except
-            log.debug("DGM install_os reboot True, post conn.sw.reboot exception '{0}'".format(exception))
             __proxy__["junos.reboot_clear"]()
-            log.debug("DGM install_os reboot True, post conn.sw.reboot, reboot_active flag '{0}'".format(__proxy__["junos.get_reboot_active"]()))
             ret[
                 "message"
             ] = "Installation successful but reboot failed due to : '{0}'".format(
                 exception
             )
             ret["out"] = False
-            log.debug("DGM install_os reboot True, post conn.sw.reboot exception, restarting connection")
             _restart_connection()
             return ret
 
+        __proxy__["junos.reboot_clear"]()
         ret["message"] = "Successfully installed and rebooted!"
 
-    log.debug("DGM install_os exit ret '{0}'".format(ret))
     return ret
 
 

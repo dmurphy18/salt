@@ -1714,8 +1714,6 @@ def proxy_reconnect(proxy_name, opts=None):
 
         salt '*' status.proxy_reconnect rest_sample
     '''
-    log.debug("DGM proxy_reconnect entry")
-
     if not opts:
         opts = __opts__
 
@@ -1728,14 +1726,15 @@ def proxy_reconnect(proxy_name, opts=None):
 
     if __proxy__[proxy_name+'.get_reboot_active']():
         # if rebooting or shutting down, don't run proxy_reconnect
+        # it interferes with the connection and disrupts the shutdown/reboot
+        # especially
         minion_id = opts.get('proxyid', '') or opts.get('id', '')
-        log.info('%s (%s proxy) is rebooting or shutting down. Not closing or restarting.', minion_id, proxy_name)
+        log.info("{0} ({1} proxy) is rebooting or shutting down. Don't probe connection.".format(minion_id, proxy_name))
         return True
 
     is_alive = __proxy__[proxy_keepalive_fn](opts)
 
     if not is_alive:
-        log.debug("DGM proxy_reconnect not is_alive, reboot_active flag '{0}'".format(__proxy__[proxy_name+'.get_reboot_active']()))
         minion_id = opts.get('proxyid', '') or opts.get('id', '')
         log.info('%s (%s proxy) is down. Restarting.', minion_id, proxy_name)
         __proxy__[proxy_name+'.shutdown'](opts)  # safely close connection
