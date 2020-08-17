@@ -10,7 +10,6 @@ from the minion (PYTHONPATH), but others don't (ip_interfaces)
 from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
-import os
 
 # Import Salt libs
 import salt.utils.platform

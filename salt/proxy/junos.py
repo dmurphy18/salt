@@ -69,8 +69,14 @@ thisproxy = {}
 log = logging.getLogger(__name__)
 
 
-Class RebootActive:
+class RebootActive:
+    """
+        Class to get statice variable
+    """
     reboot_shutdown = False
+
+    def __init__(self, **kwargs):
+        pass
 
 
 # Define the module's virtual name
@@ -168,13 +174,15 @@ def conn():
 
 def reboot_active():
     RebootActive.reboot_shutdown = True
-
+    log.debug("DGM reboot_active '{0}'".format(RebootActive.reboot_shutdown))
 
 def reboot_clear():
     RebootActive.reboot_shutdown = False
+    log.debug("DGM reboot_clear '{0}'".format(RebootActive.reboot_shutdown))
 
 
 def get_reboot_active():
+    log.debug("DGM get_reboot_active '{0}'".format(RebootActive.reboot_shutdown))
     return RebootActive.reboot_shutdown
 
 
