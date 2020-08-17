@@ -1401,6 +1401,10 @@ def install_os(path=None, **kwargs):
         ret["out"] = False
         return ret
 
+    if reboot:
+        #  flag reboot actice, disables proxy_reconnect
+        __proxy__["junos.reboot_active"]()
+
     install_status = False
     if not no_copy_:
         with HandleFileCopy(path) as image_path:
@@ -1408,6 +1412,7 @@ def install_os(path=None, **kwargs):
             if image_path is None:
                 ret["message"] = "Invalid path. Please provide a valid image path"
                 ret["out"] = False
+                __proxy__["junos.reboot_clear"]()
                 return ret
             if not salt.utils.platform.is_proxy():
                 # If its native minion running on Junos, pyez dont need to SCP file
@@ -1426,6 +1431,7 @@ def install_os(path=None, **kwargs):
             except Exception as exception:  # pylint: disable=broad-except
                 ret["message"] = "Installation failed due to: '{0}'".format(exception)
                 ret["out"] = False
+                __proxy__["junos.reboot_clear"]()
                 _restart_connection()
                 return ret
     else:
@@ -1435,6 +1441,7 @@ def install_os(path=None, **kwargs):
         except Exception as exception:  # pylint: disable=broad-except
             ret["message"] = "Installation failed due to: '{0}'".format(exception)
             ret["out"] = False
+            __proxy__["junos.reboot_clear"]()
             _restart_connection()
             return ret
 
@@ -1445,6 +1452,7 @@ def install_os(path=None, **kwargs):
     else:
         ret["message"] = "Installation failed. Reason: {0}".format(install_message)
         ret["out"] = False
+        __proxy__["junos.reboot_clear"]()
         return ret
 
     # Handle reboot, after the install has finished
