@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 Platform independent versions of some os/os.path functions. Gets around PY2's
 lack of support for reading NTFS links.
 """
 
 # Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import errno
 import logging
@@ -87,7 +85,7 @@ def readlink(path):
     if not reparse_data:
         # Reproduce *NIX behavior when os.readlink is performed on a path that
         # is not a symbolic link.
-        raise OSError(errno.EINVAL, "Invalid argument: '{0}'".format(path))
+        raise OSError(errno.EINVAL, "Invalid argument: '{}'".format(path))
 
     # REPARSE_DATA_BUFFER structure - see
     # http://msdn.microsoft.com/en-us/library/ff552012.aspx
@@ -261,7 +259,7 @@ def which(exe=None):
     ## now to define the semantics of what's considered executable on a given platform
     if salt.utils.platform.is_windows():
         # executable semantics on windows requires us to search PATHEXT
-        res = salt.utils.stringutils.to_str(os.environ.get("PATHEXT", str(".EXE")))
+        res = salt.utils.stringutils.to_str(os.environ.get("PATHEXT", ".EXE"))
 
         # generate two variables, one of them for O(n) searches (but ordered)
         # and another for O(1) searches. the previous guy was trying to use
@@ -324,6 +322,7 @@ def which_bin(exes):
     """
     if not isinstance(exes, Iterable):
         return None
+
     for exe in exes:
         path = which(exe)
         if not path:
@@ -344,11 +343,10 @@ def join(*parts, **kwargs):
     The "use_posixpath" kwarg can be be used to force joining using poxixpath,
     which is useful for Salt fileserver paths on Windows masters.
     """
-    if six.PY3:
-        new_parts = []
-        for part in parts:
-            new_parts.append(salt.utils.stringutils.to_str(part))
-        parts = new_parts
+    new_parts = []
+    for part in parts:
+        new_parts.append(salt.utils.stringutils.to_str(part))
+    parts = new_parts
 
     kwargs = salt.utils.args.clean_kwargs(**kwargs)
     use_posixpath = kwargs.pop("use_posixpath", False)
@@ -387,7 +385,7 @@ def check_or_die(command):
         raise CommandNotFoundError("'None' is not a valid command.")
 
     if not which(command):
-        raise CommandNotFoundError("'{0}' is not in the path".format(command))
+        raise CommandNotFoundError("'{}' is not in the path".format(command))
 
 
 def sanitize_win_path(winpath):
@@ -395,9 +393,9 @@ def sanitize_win_path(winpath):
     Remove illegal path characters for windows
     """
     intab = "<>:|?*"
-    if isinstance(winpath, six.text_type):
-        winpath = winpath.translate(dict((ord(c), "_") for c in intab))
-    elif isinstance(winpath, six.string_types):
+    if isinstance(winpath, str):
+        winpath = winpath.translate({ord(c): "_" for c in intab})
+    elif isinstance(winpath, str):
         outtab = "_" * len(intab)
         trantab = (
             "".maketrans(intab, outtab) if six.PY3 else string.maketrans(intab, outtab)

@@ -1,10 +1,8 @@
-# coding: utf-8 -*-
 """
 Make me some salt!
 """
 
 # Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import warnings
@@ -49,9 +47,9 @@ warnings.filterwarnings(
 
 
 try:
-    from salt.utils.zeromq import ip_bracket
     import salt.utils.parsers
     from salt.utils.verify import check_user, verify_env, verify_socket
+    from salt.utils.zeromq import ip_bracket
 except ImportError as exc:
     if exc.args[0] != "No module named _msgpack":
         raise
@@ -62,7 +60,7 @@ except ImportError as exc:
 log = salt.log.setup.logging.getLogger(__name__)
 
 
-class DaemonsMixin(object):  # pylint: disable=no-init
+class DaemonsMixin:  # pylint: disable=no-init
     """
     Uses the same functions for all daemons
     """
@@ -135,7 +133,7 @@ class Master(
             self.master.process_manager.send_signal_to_processes(signum)
             # kill any remaining processes
             self.master.process_manager.kill_children()
-        super(Master, self)._handle_signals(signum, sigframe)
+        super()._handle_signals(signum, sigframe)
 
     def prepare(self):
         """
@@ -145,7 +143,7 @@ class Master(
 
             super(YourSubClass, self).prepare()
         """
-        super(Master, self).prepare()
+        super().prepare()
 
         try:
             if self.config["verify_env"]:
@@ -210,7 +208,7 @@ class Master(
 
         NOTE: Run any required code before calling `super()`.
         """
-        super(Master, self).start()
+        super().start()
         if check_user(self.config["user"]):
             self.action_log_info("Starting up")
             self.verify_hash_type()
@@ -226,7 +224,7 @@ class Master(
             exitmsg = msg + exitmsg
         else:
             exitmsg = msg.strip()
-        super(Master, self).shutdown(exitcode, exitmsg)
+        super().shutdown(exitcode, exitmsg)
 
 
 class Minion(
@@ -240,7 +238,7 @@ class Minion(
         # escalate signal to the process manager processes
         if hasattr(self.minion, "stop"):
             self.minion.stop(signum)
-        super(Minion, self)._handle_signals(signum, sigframe)
+        super()._handle_signals(signum, sigframe)
 
     # pylint: disable=no-member
     def prepare(self):
@@ -251,7 +249,7 @@ class Minion(
 
             super(YourSubClass, self).prepare()
         """
-        super(Minion, self).prepare()
+        super().prepare()
 
         try:
             if self.config["verify_env"]:
@@ -337,7 +335,7 @@ class Minion(
 
         NOTE: Run any required code before calling `super()`.
         """
-        super(Minion, self).start()
+        super().start()
         while True:
             try:
                 self._real_start()
@@ -403,10 +401,10 @@ class Minion(
         self.action_log_info("Shutting down")
         if hasattr(self, "minion") and hasattr(self.minion, "destroy"):
             self.minion.destroy()
-        super(Minion, self).shutdown(
+        super().shutdown(
             exitcode,
             (
-                "The Salt {0} is shutdown. {1}".format(
+                "The Salt {} is shutdown. {}".format(
                     self.__class__.__name__, (exitmsg or "")
                 ).strip()
             ),
@@ -425,7 +423,7 @@ class ProxyMinion(
     def _handle_signals(self, signum, sigframe):  # pylint: disable=unused-argument
         # escalate signal to the process manager processes
         self.minion.stop(signum)
-        super(ProxyMinion, self)._handle_signals(signum, sigframe)
+        super()._handle_signals(signum, sigframe)
 
     # pylint: disable=no-member
     def prepare(self):
@@ -436,10 +434,11 @@ class ProxyMinion(
 
             super(YourSubClass, self).prepare()
         """
-        super(ProxyMinion, self).prepare()
+        super().prepare()
 
-        if not self.values.proxyid:
-            self.error("salt-proxy requires --proxyid")
+        # commented due to native minion support
+        # if not self.values.proxyid:
+        #     self.error('salt-proxy requires --proxyid')
 
         # Proxies get their ID from the command line.  This may need to change in
         # the future.
@@ -487,7 +486,7 @@ class ProxyMinion(
 
         self.setup_logfile_logger()
         verify_log(self.config)
-        self.action_log_info('Setting up "{0}"'.format(self.config["id"]))
+        self.action_log_info('Setting up "{}"'.format(self.config["id"]))
 
         migrations.migrate_paths(self.config)
 
@@ -520,7 +519,7 @@ class ProxyMinion(
 
         NOTE: Run any required code before calling `super()`.
         """
-        super(ProxyMinion, self).start()
+        super().start()
         try:
             if check_user(self.config["user"]):
                 self.action_log_info("The Proxy Minion is starting up")
@@ -548,10 +547,10 @@ class ProxyMinion(
             proxy_fn = self.minion.opts["proxymodule"].loaded_base_name + ".shutdown"
             self.minion.opts["proxymodule"][proxy_fn](self.minion.opts)
         self.action_log_info("Shutting down")
-        super(ProxyMinion, self).shutdown(
+        super().shutdown(
             exitcode,
             (
-                "The Salt {0} is shutdown. {1}".format(
+                "The Salt {} is shutdown. {}".format(
                     self.__class__.__name__, (exitmsg or "")
                 ).strip()
             ),
@@ -575,7 +574,7 @@ class Syndic(
 
             super(YourSubClass, self).prepare()
         """
-        super(Syndic, self).prepare()
+        super().prepare()
         try:
             if self.config["verify_env"]:
                 verify_env(
@@ -595,7 +594,7 @@ class Syndic(
 
         self.setup_logfile_logger()
         verify_log(self.config)
-        self.action_log_info('Setting up "{0}"'.format(self.config["id"]))
+        self.action_log_info('Setting up "{}"'.format(self.config["id"]))
 
         # Late import so logging works correctly
         import salt.minion
@@ -614,7 +613,7 @@ class Syndic(
 
         NOTE: Run any required code before calling `super()`.
         """
-        super(Syndic, self).start()
+        super().start()
         if check_user(self.config["user"]):
             self.action_log_info("Starting up")
             self.verify_hash_type()
@@ -632,10 +631,10 @@ class Syndic(
         :param exitmsg
         """
         self.action_log_info("Shutting down")
-        super(Syndic, self).shutdown(
+        super().shutdown(
             exitcode,
             (
-                "The Salt {0} is shutdown. {1}".format(
+                "The Salt {} is shutdown. {}".format(
                     self.__class__.__name__, (exitmsg or "")
                 ).strip()
             ),

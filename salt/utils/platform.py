@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Functions for identifying which platform a machine is
 """
-from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import subprocess
 import sys
 
 from distro import linux_distribution
+
 from salt.utils.decorators import memoize as real_memoize
 
 
@@ -94,7 +93,9 @@ def is_smartos_globalzone():
     else:
         try:
             zonename_proc = subprocess.Popen(
-                ["zonename"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                ["zonename"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
             zonename_output = (
                 zonename_proc.communicate()[0].strip().decode(__salt_system_encoding__)
@@ -120,7 +121,9 @@ def is_smartos_zone():
     else:
         try:
             zonename_proc = subprocess.Popen(
-                ["zonename"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                ["zonename"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
             zonename_output = (
                 zonename_proc.communicate()[0].strip().decode(__salt_system_encoding__)
@@ -134,6 +137,14 @@ def is_smartos_zone():
             return False
 
         return True
+
+
+@real_memoize
+def is_junos():
+    """
+    Simple function to return if host is Junos or not
+    """
+    return sys.platform.startswith("freebsd") and os.uname().release.startswith("JNPR")
 
 
 @real_memoize
