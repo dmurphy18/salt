@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 Salt package
 """
 
-from __future__ import absolute_import, print_function, unicode_literals
 
 import importlib
 import sys
@@ -16,7 +14,7 @@ if sys.version_info < (3,):
     sys.stderr.flush()
 
 
-class TornadoImporter(object):
+class TornadoImporter:
     def find_module(self, module_name, package_path=None):
         if module_name.startswith("tornado"):
             return self
@@ -38,7 +36,6 @@ warnings.filterwarnings(
     "",  # No deprecation message match
     DeprecationWarning,  # This filter is for DeprecationWarnings
     r"^(salt|salt\.(.*))$",  # Match module(s) 'salt' and 'salt.<whatever>'
-    append=True,
 )
 
 # While we are supporting Python2.6, hide nested with-statements warnings
@@ -46,7 +43,6 @@ warnings.filterwarnings(
     "ignore",
     "With-statements now directly support multiple context managers",
     DeprecationWarning,
-    append=True,
 )
 
 # Filter the backports package UserWarning about being re-imported
@@ -54,7 +50,6 @@ warnings.filterwarnings(
     "ignore",
     "^Module backports was already imported from (.*), but (.*) is being added to sys.path$",
     UserWarning,
-    append=True,
 )
 
 

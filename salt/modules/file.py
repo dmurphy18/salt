@@ -51,7 +51,6 @@ from salt.exceptions import CommandExecutionError, MinionError, SaltInvocationEr
 from salt.exceptions import get_error_message as _get_error_message
 
 # pylint: disable=import-error,no-name-in-module,redefined-builtin
-from salt.ext import six
 from salt.ext.six.moves import range, zip
 from salt.ext.six.moves.urllib.parse import urlparse as _urlparse
 from salt.utils.files import HASHES, HASHES_REVMAP
@@ -1555,7 +1554,7 @@ def comment_line(path, regex, char="#", cmnt=True, backup=".bak"):
 
     try:
         # Open the file in write mode
-        mode = "wb" if six.PY2 and salt.utils.platform.is_windows() else "w"
+        mode = "w"
         with salt.utils.files.fopen(path, mode=mode, buffering=bufsize) as w_file:
             try:
                 # Open the temp file in read mode
@@ -1576,11 +1575,7 @@ def comment_line(path, regex, char="#", cmnt=True, backup=".bak"):
                             else:
                                 # Write the existing line (no change)
                                 wline = line
-                            wline = (
-                                salt.utils.stringutils.to_bytes(wline)
-                                if six.PY2 and salt.utils.platform.is_windows()
-                                else salt.utils.stringutils.to_str(wline)
-                            )
+                            wline = salt.utils.stringutils.to_str(wline)
                             w_file.write(wline)
                         except OSError as exc:
                             raise CommandExecutionError(
@@ -2325,13 +2320,8 @@ def line(
         if __opts__["test"] is False:
             fh_ = None
             try:
-                # Make sure we match the file mode from salt.utils.files.fopen
-                if six.PY2 and salt.utils.platform.is_windows():
-                    mode = "wb"
-                    body = salt.utils.data.encode_list(body)
-                else:
-                    mode = "w"
-                    body = salt.utils.data.decode_list(body, to_str=True)
+                mode = "w"
+                body = salt.utils.data.decode_list(body, to_str=True)
                 fh_ = salt.utils.atomicfile.atomic_open(path, mode)
                 fh_.writelines(body)
             finally:
@@ -2740,8 +2730,6 @@ def blockreplace(
     dry_run=False,
     show_changes=True,
     append_newline=False,
-    insert_before_match=None,
-    insert_after_match=None,
 ):
     """
     .. versionadded:: 2014.1.0
@@ -2784,17 +2772,6 @@ def blockreplace(
         If markers are not found and set to ``True`` then, the markers and
         content will be prepended to the file.
 
-    insert_before_match
-        If markers are not found, this parameter can be set to a regex which will
-        insert the block before the first found occurrence in the file.
-
-        .. versionadded:: Sodium
-
-    insert_after_match
-        If markers are not found, this parameter can be set to a regex which will
-        insert the block after the first found occurrence in the file.
-
-        .. versionadded:: Sodium
 
     backup
         The file extension to use for a backup of the file if any edit is made.
@@ -2833,16 +2810,9 @@ def blockreplace(
         '#-- end managed zone foobar --' $'10.0.1.1 foo.foobar\\n10.0.1.2 bar.foobar' True
 
     """
-    exclusive_params = [
-        append_if_not_found,
-        prepend_if_not_found,
-        bool(insert_before_match),
-        bool(insert_after_match),
-    ]
-    if sum(exclusive_params) > 1:
+    if append_if_not_found and prepend_if_not_found:
         raise SaltInvocationError(
-            "Only one of append_if_not_found, prepend_if_not_found,"
-            " insert_before_match, and insert_after_match is permitted"
+            "Only one of append and prepend_if_not_found is permitted"
         )
 
     path = os.path.expanduser(path)
@@ -2860,18 +2830,6 @@ def blockreplace(
             raise SaltInvocationError(
                 "Cannot perform string replacements on a binary file: {}".format(path)
             )
-
-    if insert_before_match or insert_after_match:
-        if insert_before_match:
-            if not isinstance(insert_before_match, str):
-                raise CommandExecutionError(
-                    "RegEx expected in insert_before_match parameter."
-                )
-        elif insert_after_match:
-            if not isinstance(insert_after_match, str):
-                raise CommandExecutionError(
-                    "RegEx expected in insert_after_match parameter."
-                )
 
     if append_newline is None and not content.endswith((os.linesep, "\n")):
         append_newline = True
@@ -2997,26 +2955,12 @@ def blockreplace(
             block_found = True
         elif append_if_not_found:
             # Make sure we have a newline at the end of the file
-            if new_file:
+            if 0 != len(new_file):
                 if not new_file[-1].endswith(linesep):
                     new_file[-1] += linesep
             # add the markers and content at the end of file
             _add_content(linesep, lines=new_file)
             block_found = True
-        elif insert_before_match or insert_after_match:
-            match_regex = insert_before_match or insert_after_match
-            match_idx = [
-                i for i, item in enumerate(orig_file) if re.search(match_regex, item)
-            ]
-            if match_idx:
-                match_idx = match_idx[0]
-                for line in _add_content(linesep):
-                    if insert_after_match:
-                        match_idx += 1
-                    new_file.insert(match_idx, line)
-                    if insert_before_match:
-                        match_idx += 1
-                block_found = True
         else:
             raise CommandExecutionError(
                 "Cannot edit marked block. Markers were not found in file."
@@ -3053,57 +2997,34 @@ def blockreplace(
                         mode=perms["mode"],
                     )
 
-    if not block_found:
-        raise CommandExecutionError(
-            "Cannot edit marked block. Markers were not found in file."
-        )
+            # write new content in the file while avoiding partial reads
+            try:
+                fh_ = salt.utils.atomicfile.atomic_open(path, "wb")
+                for line in new_file:
+                    fh_.write(
+                        salt.utils.stringutils.to_bytes(line, encoding=file_encoding)
+                    )
+            finally:
+                fh_.close()
 
-    diff = __utils__["stringutils.get_diff"](orig_file, new_file)
-    has_changes = diff != ""
-    if has_changes and not dry_run:
-        # changes detected
-        # backup file attrs
-        perms = {}
-        perms["user"] = get_user(path)
-        perms["group"] = get_group(path)
-        perms["mode"] = salt.utils.files.normalize_mode(get_mode(path))
-
-        # backup old content
-        if backup is not False:
-            backup_path = "{}{}".format(path, backup)
-            shutil.copy2(path, backup_path)
-            # copy2 does not preserve ownership
+            # this may have overwritten file attrs
             if salt.utils.platform.is_windows():
                 # This function resides in win_file.py and will be available
                 # on Windows. The local function will be overridden
                 # pylint: disable=E1120,E1123
-                check_perms(path=backup_path, ret=None, owner=perms["user"])
+                check_perms(path=path, ret=None, owner=perms["user"])
                 # pylint: enable=E1120,E1123
             else:
                 check_perms(
-                    backup_path, None, perms["user"], perms["group"], perms["mode"]
+                    path,
+                    ret=None,
+                    user=perms["user"],
+                    group=perms["group"],
+                    mode=perms["mode"],
                 )
 
-        # write new content in the file while avoiding partial reads
-        try:
-            fh_ = salt.utils.atomicfile.atomic_open(path, "wb")
-            for line in new_file:
-                fh_.write(salt.utils.stringutils.to_bytes(line, encoding=file_encoding))
-        finally:
-            fh_.close()
-
-        # this may have overwritten file attrs
-        if salt.utils.platform.is_windows():
-            # This function resides in win_file.py and will be available
-            # on Windows. The local function will be overridden
-            # pylint: disable=E1120,E1123
-            check_perms(path=path, ret=None, owner=perms["user"])
-            # pylint: enable=E1120,E1123
-        else:
-            check_perms(path, None, perms["user"], perms["group"], perms["mode"])
-
-    if show_changes:
-        return diff
+        if show_changes:
+            return diff
 
     return has_changes
 
@@ -4407,9 +4328,7 @@ def apply_template_on_contents(contents, template, context, defaults, saltenv):
             salt=__salt__,
             opts=__opts__,
         )["data"]
-        if six.PY2:
-            contents = contents.encode("utf-8")
-        elif six.PY3 and isinstance(contents, bytes):
+        if isinstance(contents, bytes):
             # bytes -> str
             contents = contents.decode("utf-8")
     else:

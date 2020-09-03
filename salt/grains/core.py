@@ -870,6 +870,10 @@ def _virtual(osdata):
                 grains["virtual"] = "LXC"
                 break
         elif command == "virt-what":
+            try:
+                output = output.splitlines()[-1]
+            except IndexError:
+                pass
             for line in output.splitlines():
                 if line in ("kvm", "qemu", "uml", "xen", "lxc"):
                     grains["virtual"] = line

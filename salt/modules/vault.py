@@ -161,6 +161,7 @@ Functions to interact with Hashicorp Vault.
 .. _vault-setup:
 """
 # Import Python libs
+
 import logging
 import os
 
@@ -314,7 +315,7 @@ def destroy_secret(path, *args):
     """
     .. versionadded:: 3001
 
-    Destroy specified secret version at the path in vault. The vault policy
+    Destory specified secret version at the path in vault. The vault policy
     used must allow this. Only supported on Vault KV version 2
 
     CLI Example:

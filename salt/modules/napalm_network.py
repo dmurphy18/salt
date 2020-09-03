@@ -19,6 +19,7 @@ Dependencies
 """
 
 # Import Python libs
+
 import datetime
 import logging
 import time
@@ -124,8 +125,7 @@ def _safe_commit_config(loaded_result, napalm_device):
 
 
 def _safe_dicard_config(loaded_result, napalm_device):
-    """
-    """
+    """"""
     log.debug("Discarding the config")
     log.debug(loaded_result)
     _discarded = discard_config(inherit_napalm_device=napalm_device)
@@ -607,7 +607,7 @@ def cli(*commands, **kwargs):  # pylint: disable=unused-argument
             file or pillar as ``textfsm_index_file``.
 
     saltenv: ``base``
-        Salt fileserver environment from which to retrieve the file.
+        Salt fileserver envrionment from which to retrieve the file.
         Ignored if ``textfsm_path`` is not a ``salt://`` URL.
 
         .. versionadded:: 2018.3.0

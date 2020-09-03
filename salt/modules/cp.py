@@ -3,12 +3,12 @@ Minion side functions for salt-cp
 """
 
 # Import python libs
+
 import base64
 import errno
 import fnmatch
 import logging
 import os
-from urllib.parse import urlparse
 
 import salt.crypt
 import salt.fileclient
@@ -23,6 +23,9 @@ import salt.utils.path
 import salt.utils.templates
 import salt.utils.url
 from salt.exceptions import CommandExecutionError
+
+# Import 3rd-party libs
+from salt.ext.six.moves.urllib.parse import urlparse as _urlparse
 
 log = logging.getLogger(__name__)
 
@@ -369,7 +372,7 @@ def get_url(path, dest="", saltenv="base", makedirs=False, source_hash=None):
             ``https://`` will not be cached.
 
     saltenv : base
-        Salt fileserver environment from which to retrieve the file. Ignored if
+        Salt fileserver envrionment from which to retrieve the file. Ignored if
         ``path`` is not a ``salt://`` URL.
 
     source_hash
@@ -469,7 +472,7 @@ def cache_file(path, saltenv="base", source_hash=None):
 
     contextkey = "{}_|-{}_|-{}".format("cp.cache_file", path, saltenv)
 
-    path_is_remote = urlparse(path).scheme in salt.utils.files.REMOTE_PROTOS
+    path_is_remote = _urlparse(path).scheme in salt.utils.files.REMOTE_PROTOS
     try:
         if path_is_remote and contextkey in __context__:
             # Prevent multiple caches in the same salt run. Affects remote URLs

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Configuration of network interfaces
 ===================================
@@ -26,20 +25,12 @@ all interfaces are ignored unless specified.
     management. It is recommended to use either `file.managed` *or*
     `network.managed`.
 
-    If using ``network.managed``, it can be useful to ensure ``interfaces.d/``
-    is empty. This can be done using the following state
-
-    .. code-block:: yaml
+    If using `network.managed`, it can be useful to ensure `interfaces.d/`
+    is empty. This can be done using:
 
         /etc/network/interfaces.d:
           file.directory:
             - clean: True
-
-Configuring Global Network Settings
------------------------------------
-
-Use the :py:func:`network.system <salt.states.network.system>` state to set
-global network settings:
 
 .. code-block:: yaml
 
@@ -52,63 +43,6 @@ global network settings:
         - nozeroconf: True
         - nisdomain: example.com
         - require_reboot: True
-        - apply_hostname: True
-
-.. note::
-    The use of ``apply_hostname`` above will apply changes to the hostname
-    immediately.
-
-.. versionchanged:: 2015.5.0
-    ``apply_hostname`` added
-
-retain_settings
-***************
-
-.. versionadded:: 2016.11.0
-
-Use `retain_settings` to retain current network settings that are not otherwise
-specified in the state. Particularly useful if only setting the hostname.
-Default behavior is to delete unspecified network settings.
-
-.. code-block:: yaml
-
-    system:
-      network.system:
-        - hostname: server2.example.com
-        - apply_hostname: True
-        - retain_settings: True
-
-Configuring Network Routes
---------------------------
-
-Use the :py:func:`network.routes <salt.states.network.routes>` state to set
-network routes.
-
-.. code-block:: yaml
-
-    routes:
-      network.routes:
-        - name: eth0
-        - routes:
-          - name: secure_network
-            ipaddr: 10.2.0.0
-            netmask: 255.255.255.0
-            gateway: 10.1.0.3
-          - name: HQ_network
-            ipaddr: 10.100.0.0
-            netmask: 255.255.0.0
-            gateway: 10.1.0.10
-
-Managing Network Interfaces
----------------------------
-
-The :py:func:`network.managed <salt.states.network.managed>` state is used to
-configure network interfaces. Here are several examples:
-
-Ethernet Interface
-******************
-
-.. code-block:: yaml
 
     eth0:
       network.managed:
@@ -120,7 +54,7 @@ Ethernet Interface
         - gateway: 10.1.0.1
         - enable_ipv6: true
         - ipv6proto: static
-        - ipv6addrs:
+        - ipv6ipaddrs:
           - 2001:db8:dead:beef::3/64
           - 2001:db8:dead:beef::7/64
         - ipv6gateway: 2001:db8:dead:beef::1
@@ -128,19 +62,6 @@ Ethernet Interface
         - dns:
           - 8.8.8.8
           - 8.8.4.4
-
-Ranged Interfaces (RHEL/CentOS Only)
-************************************
-
-.. versionadded:: 2015.8.0
-
-Ranged interfaces can be created by including the word ``range`` in the
-interface name.
-
-.. important::
-    The interface type must be ``eth``.
-
-.. code-block:: yaml
 
     eth0-range0:
       network.managed:
@@ -176,18 +97,22 @@ interface name.
         - vlan: True
         - mtu: 9000
 
-Bond Interfaces
-***************
+    .. note::
+        add support of ranged interfaces (vlan, bond and eth) for redhat system,
+        Important:type must be eth.
 
-To configure a bond, you must do the following:
-
-- Configure the bond slaves with a ``type`` of ``slave``, and a ``master``
-  option set to the name of the bond interface.
-
-- Configure the bond interface with a ``type`` of ``bond``, and a ``slaves``
-  option defining the bond slaves for the bond interface.
-
-.. code-block:: yaml
+    routes:
+      network.routes:
+        - name: eth0
+        - routes:
+          - name: secure_network
+            ipaddr: 10.2.0.0
+            netmask: 255.255.255.0
+            gateway: 10.1.0.3
+          - name: HQ_network
+            ipaddr: 10.100.0.0
+            netmask: 255.255.0.0
+            gateway: 10.1.0.10
 
     eth2:
       network.managed:
@@ -200,6 +125,21 @@ To configure a bond, you must do the following:
         - enabled: True
         - type: slave
         - master: bond0
+
+    eth4:
+      network.managed:
+        - enabled: True
+        - type: eth
+        - proto: dhcp
+        - bridge: br0
+
+    eth5:
+      network.managed:
+        - enabled: True
+        - type: eth
+        - proto: dhcp
+        - noifupdown: True  # Do not restart the interface
+                            # you need to reboot/reconfigure manually
 
     bond0:
       network.managed:
@@ -237,14 +177,6 @@ To configure a bond, you must do the following:
         - gro: off
         - lro: off
 
-VLANs
-*****
-
-Set ``type`` to ``vlan`` to configure a VLANs. These VLANs are configured on
-the bond interface defined above.
-
-.. code-block:: yaml
-
     bond0.2:
       network.managed:
         - type: vlan
@@ -280,19 +212,6 @@ the bond interface defined above.
           - network: bond0
         - require:
           - network: bond0
-
-Bridge Interfaces
-*****************
-
-.. code-block:: yaml
-
-    eth4:
-      network.managed:
-        - enabled: True
-        - type: eth
-        - proto: dhcp
-        - bridge: br0
-
     br0:
       network.managed:
         - enabled: True
@@ -307,104 +226,7 @@ Bridge Interfaces
         - require:
           - network: eth4
 
-.. note::
-    When managing bridged interfaces on a Debian/Ubuntu based system, the
-    ``ports`` argument is required. RedHat-based systems will ignore the
-    argument.
-
-Network Teaming (RHEL/CentOS 7 and later)
-*****************************************
-
-.. versionadded:: 3002
-
-- Configure the members of the team interface with a ``type`` of ``teamport``,
-  and a ``team_master`` option set to the name of the bond interface.
-
-  - ``master`` also works, but will be ignored if both ``team_master`` and
-    ``master`` are present.
-
-  - If applicable, include a ``team_port_config`` option. This should be
-    formatted as a dictionary. Keep in mind that due to a quirk of PyYAML,
-    dictionaries nested under a list item must be double-indented (see example
-    below for interface ``eth5``).
-
-- Configure the team interface with a ``type`` of ``team``. The team
-  configuration should be passed via the ``team_config`` option. As with
-  ``team_port_config``, the dictionary should be double-indented.
-
-.. code-block:: yaml
-
-    eth5:
-      network.managed:
-        - type: teamport
-        - team_master: team0
-        - team_port_config:
-            prio: 100
-
     eth6:
-      network.managed:
-        - type: teamport
-        - team_master: team0
-
-    team0:
-      network.managed:
-        - type: team
-        - ipaddr: 172.24.90.42
-        - netmask: 255.255.255.128
-        - enable_ipv6: True
-        - ipv6addr: 'fee1:dead:beef:af43::'
-        - team_config:
-            runner:
-              hwaddr_policy: by_active
-              name: activebackup
-              link_watch:
-                name: ethtool
-
-.. note::
-    While ``teamd`` must be installed to manage a team interface, it is not
-    required to configure a separate :py:func:`pkg.installed
-    <salt.states.pkg.installed>` state for it, as it will be silently installed
-    if needed.
-
-Configuring the Loopback Interface
-**********************************
-
-Use :py:func:`network.managed <salt.states.network.managed>` with a ``type`` of
-``eth`` and a ``proto`` of ``loopback``.
-
-.. code-block:: yaml
-
-    lo:
-      network.managed:
-        - name: lo
-        - type: eth
-        - proto: loopback
-        - onboot: yes
-        - userctl: no
-        - ipv6_autoconf: no
-        - enable_ipv6: true
-
-Other Useful Options
---------------------
-
-noifupdown
-**********
-
-The ``noifupdown`` option, if set to ``True``, will keep Salt from restart the
-interface if changes are made, requiring them to be restarted manually. Here
-are a couple examples:
-
-.. code-block:: yaml
-
-    eth7:
-      network.managed:
-        - enabled: True
-        - type: eth
-        # Automatic IP/DNS
-        - proto: dhcp
-        - noifupdown: True
-
-    eth8:
       network.managed:
         - type: eth
         - noifupdown: True
@@ -418,7 +240,7 @@ are a couple examples:
 
         # IPv6
         - ipv6proto: static
-        - ipv6addr: 2001:db8:dead:c0::3
+        - ipv6ipaddr: 2001:db8:dead:c0::3
         - ipv6netmask: 64
         - ipv6gateway: 2001:db8:dead:c0::1
         # override shared; makes those options v4-only
@@ -430,11 +252,86 @@ are a couple examples:
         - dns:
           - 8.8.8.8
           - 8.8.4.4
+
+    eth7:
+        - type: eth
+        - proto: static
+        - ipaddr: 10.1.0.7
+        - netmask: 255.255.255.0
+        - gateway: 10.1.0.1
+        - enable_ipv6: True
+        - ipv6proto: static
+        - ipv6ipaddr: 2001:db8:dead:beef::3
+        - ipv6netmask: 64
+        - ipv6gateway: 2001:db8:dead:beef::1
+        - noifupdown: True
+
+    eth8:
+      network.managed:
+        - enabled: True
+        - type: eth
+        - proto: static
+        - enable_ipv6: true
+        - ipv6proto: static
+        - ipv6ipaddrs:
+          - 2001:db8:dead:beef::3/64
+          - 2001:db8:dead:beef::7/64
+        - ipv6gateway: 2001:db8:dead:beef::1
+        - ipv6netmask: 64
+        - dns:
+          - 8.8.8.8
+          - 8.8.4.4
+
+    system:
+      network.system:
+        - enabled: True
+        - hostname: server1.example.com
+        - gateway: 192.168.0.1
+        - gatewaydev: eth0
+        - nozeroconf: True
+        - nisdomain: example.com
+        - require_reboot: True
+        - apply_hostname: True
+
+    lo:
+      network.managed:
+        - name: lo
+        - type: eth
+        - proto: loopback
+        - onboot: yes
+        - userctl: no
+        - ipv6_autoconf: no
+        - enable_ipv6: true
+
+    .. note::
+        Apply changes to hostname immediately.
+
+    .. versionadded:: 2015.5.0
+
+    system:
+      network.system:
+        - hostname: server2.example.com
+        - apply_hostname: True
+        - retain_settings: True
+
+    .. note::
+        Use `retain_settings` to retain current network settings that are not
+        otherwise specified in the state. Particularly useful if only setting
+        the hostname. Default behavior is to delete unspecified network
+        settings.
+
+    .. versionadded:: 2016.11.0
+
+.. note::
+
+    When managing bridged interfaces on a Debian or Ubuntu based system, the
+    ports argument is required.  Red Hat systems will ignore the argument.
 """
-from __future__ import absolute_import, print_function, unicode_literals
 
 # Import Python libs
 import difflib
+
+# Set up logging
 import logging
 
 import salt.loader
@@ -443,7 +340,6 @@ import salt.loader
 import salt.utils.network
 import salt.utils.platform
 
-# Set up logging
 log = logging.getLogger(__name__)
 
 
@@ -459,20 +355,22 @@ def __virtual__():
     return (False, "ip module could not be loaded")
 
 
-def managed(name, enabled=True, **kwargs):
+def managed(name, type, enabled=True, **kwargs):
     """
     Ensure that the named interface is configured properly.
 
     name
         The name of the interface to manage
 
-    type : eth
-        Type of interface and configuration
-
-        .. versionchanged:: Sodium?
+    type
+        Type of interface and configuration.
 
     enabled
         Designates the state of this interface.
+
+    kwargs
+        The IP parameters for this interface.
+
     """
     # For this function we are purposefully overwriting a bif
     # to enhance the user experience. This does not look like
@@ -482,7 +380,7 @@ def managed(name, enabled=True, **kwargs):
         "name": name,
         "changes": {},
         "result": True,
-        "comment": "Interface {0} is up to date.".format(name),
+        "comment": "Interface {} is up to date.".format(name),
     }
     if "test" not in kwargs:
         kwargs["test"] = __opts__.get("test", False)
@@ -490,44 +388,30 @@ def managed(name, enabled=True, **kwargs):
     # set ranged status
     apply_ranged_setting = False
 
-    # Pull interface type out of kwargs
-    iface_type = str(kwargs.pop("type", "eth"))
-
-    if "addr" in kwargs:
-        hwaddr = kwargs.pop("addr")
-        msg = "'addr' is not a valid argument name, "
-        if "hwaddr" not in kwargs:
-            msg += "its value has been assigned to 'hwaddr' instead."
-            kwargs["hwaddr"] = hwaddr
-        else:
-            msg += "it has been ignored in favor of 'hwaddr'."
-        msg += " Update your SLS file to get rid of this warning."
-        ret.setdefault("warnings", []).append(msg)
-
     # Build interface
     try:
         old = __salt__["ip.get_interface"](name)
-        new = __salt__["ip.build_interface"](name, iface_type, enabled, **kwargs)
+        new = __salt__["ip.build_interface"](name, type, enabled, **kwargs)
         if kwargs["test"]:
             if old == new:
                 pass
             if not old and new:
                 ret["result"] = None
-                ret["comment"] = "Interface {0} is set to be added.".format(name)
+                ret["comment"] = "Interface {} is set to be " "added.".format(name)
             elif old != new:
                 diff = difflib.unified_diff(old, new, lineterm="")
                 ret["result"] = None
-                ret["comment"] = "Interface {0} is set to be updated:\n{1}".format(
+                ret["comment"] = "Interface {} is set to be " "updated:\n{}".format(
                     name, "\n".join(diff)
                 )
         else:
             if not old and new:
-                ret["comment"] = "Interface {0} added.".format(name)
+                ret["comment"] = "Interface {} " "added.".format(name)
                 ret["changes"]["interface"] = "Added network interface."
                 apply_ranged_setting = True
             elif old != new:
                 diff = difflib.unified_diff(old, new, lineterm="")
-                ret["comment"] = "Interface {0} updated.".format(name)
+                ret["comment"] = "Interface {} " "updated.".format(name)
                 ret["changes"]["interface"] = "\n".join(diff)
                 apply_ranged_setting = True
     except AttributeError as error:
@@ -537,35 +421,36 @@ def managed(name, enabled=True, **kwargs):
 
     # Debian based system can have a type of source
     # in the interfaces file, we don't ifup or ifdown it
-    if iface_type == "source":
+    if type == "source":
         return ret
 
     # Setup up bond modprobe script if required
-    if iface_type == "bond" and "ip.get_bond" in __salt__:
+    if type == "bond":
         try:
             old = __salt__["ip.get_bond"](name)
             new = __salt__["ip.build_bond"](name, **kwargs)
             if kwargs["test"]:
                 if not old and new:
                     ret["result"] = None
-                    ret["comment"] = "Bond interface {0} is set to be added.".format(
+                    ret["comment"] = "Bond interface {} is set to be " "added.".format(
                         name
                     )
                 elif old != new:
                     diff = difflib.unified_diff(old, new, lineterm="")
                     ret["result"] = None
-                    ret["comment"] = (
-                        "Bond interface {0} is set to be "
-                        "updated:\n{1}".format(name, "\n".join(diff))
+                    ret[
+                        "comment"
+                    ] = "Bond interface {} is set to be " "updated:\n{}".format(
+                        name, "\n".join(diff)
                     )
             else:
                 if not old and new:
-                    ret["comment"] = "Bond interface {0} added.".format(name)
-                    ret["changes"]["bond"] = "Added bond {0}.".format(name)
+                    ret["comment"] = "Bond interface {} " "added.".format(name)
+                    ret["changes"]["bond"] = "Added bond {}.".format(name)
                     apply_ranged_setting = True
                 elif old != new:
                     diff = difflib.unified_diff(old, new, lineterm="")
-                    ret["comment"] = "Bond interface {0} updated.".format(name)
+                    ret["comment"] = "Bond interface {} " "updated.".format(name)
                     ret["changes"]["bond"] = "\n".join(diff)
                     apply_ranged_setting = True
         except AttributeError as error:
@@ -623,31 +508,31 @@ def managed(name, enabled=True, **kwargs):
                 if interface_status:
                     if ret["changes"]:
                         # Interface should restart to validate if it's up
-                        __salt__["ip.down"](name, iface_type)
-                        __salt__["ip.up"](name, iface_type)
+                        __salt__["ip.down"](name, type)
+                        __salt__["ip.up"](name, type)
                         ret["changes"][
                             "status"
-                        ] = "Interface {0} restart to validate".format(name)
+                        ] = "Interface {} restart to validate".format(name)
                 else:
-                    __salt__["ip.up"](name, iface_type)
-                    ret["changes"]["status"] = "Interface {0} is up".format(name)
+                    __salt__["ip.up"](name, type)
+                    ret["changes"]["status"] = "Interface {} is up".format(name)
         else:
             if "noifupdown" not in kwargs:
                 if interface_status:
-                    __salt__["ip.down"](name, iface_type)
-                    ret["changes"]["status"] = "Interface {0} down".format(name)
+                    __salt__["ip.down"](name, type)
+                    ret["changes"]["status"] = "Interface {} down".format(name)
     except Exception as error:  # pylint: disable=broad-except
         ret["result"] = False
         ret["comment"] = str(error)
         return ret
 
     # Try to enslave bonding interfaces after master was created
-    if iface_type == "bond" and "noifupdown" not in kwargs:
+    if type == "bond" and "noifupdown" not in kwargs:
 
         if "slaves" in kwargs and kwargs["slaves"]:
             # Check that there are new slaves for this master
             present_slaves = __salt__["cmd.run"](
-                ["cat", "/sys/class/net/{0}/bonding/slaves".format(name)]
+                ["cat", "/sys/class/net/{}/bonding/slaves".format(name)]
             ).split()
             desired_slaves = kwargs["slaves"].split()
             missing_slaves = set(desired_slaves) - set(present_slaves)
@@ -665,7 +550,7 @@ def managed(name, enabled=True, **kwargs):
                     __salt__["cmd.run"](cmd, python_shell=False)
                 else:
                     log.error("Command 'ifenslave' not found")
-                ret["changes"]["enslave"] = "Added slaves '{0}' to master '{1}'".format(
+                ret["changes"]["enslave"] = "Added slaves '{}' to master '{}'".format(
                     " ".join(missing_slaves), name
                 )
             else:
@@ -680,8 +565,10 @@ def managed(name, enabled=True, **kwargs):
         # Interface was restarted, return
         return ret
 
-    # Make sure that the network grains reflect any changes made here
-    __salt__["saltutil.refresh_grains"]()
+    # TODO: create saltutil.refresh_grains that fires events to the minion daemon
+    grains_info = salt.loader.grains(__opts__, True)
+    __grains__.update(grains_info)
+    __salt__["saltutil.refresh_modules"]()
     return ret
 
 
@@ -699,7 +586,7 @@ def routes(name, **kwargs):
         "name": name,
         "changes": {},
         "result": True,
-        "comment": "Interface {0} routes are up to date.".format(name),
+        "comment": "Interface {} routes are up to date.".format(name),
     }
     apply_routes = False
     if "test" not in kwargs:
@@ -714,28 +601,25 @@ def routes(name, **kwargs):
                 return ret
             if not old and new:
                 ret["result"] = None
-                ret["comment"] = "Interface {0} routes are set to be added.".format(
-                    name
-                )
+                ret["comment"] = "Interface {} routes are set to be added.".format(name)
                 return ret
             elif old != new:
                 diff = difflib.unified_diff(old, new, lineterm="")
                 ret["result"] = None
-                ret["comment"] = (
-                    "Interface {0} routes are set to be "
-                    "updated:\n{1}".format(name, "\n".join(diff))
+                ret[
+                    "comment"
+                ] = "Interface {} routes are set to be " "updated:\n{}".format(
+                    name, "\n".join(diff)
                 )
                 return ret
         if not old and new:
             apply_routes = True
-            ret["comment"] = "Interface {0} routes added.".format(name)
-            ret["changes"]["network_routes"] = "Added interface {0} routes.".format(
-                name
-            )
+            ret["comment"] = "Interface {} routes added.".format(name)
+            ret["changes"]["network_routes"] = "Added interface {} routes.".format(name)
         elif old != new:
             diff = difflib.unified_diff(old, new, lineterm="")
             apply_routes = True
-            ret["comment"] = "Interface {0} routes updated.".format(name)
+            ret["comment"] = "Interface {} routes updated.".format(name)
             ret["changes"]["network_routes"] = "\n".join(diff)
     except AttributeError as error:
         ret["result"] = False
@@ -787,9 +671,10 @@ def system(name, **kwargs):
             elif old != new:
                 diff = difflib.unified_diff(old, new, lineterm="")
                 ret["result"] = None
-                ret["comment"] = (
-                    "Global network settings are set to be "
-                    "updated:\n{0}".format("\n".join(diff))
+                ret[
+                    "comment"
+                ] = "Global network settings are set to be " "updated:\n{}".format(
+                    "\n".join(diff)
                 )
                 return ret
         if not old and new:

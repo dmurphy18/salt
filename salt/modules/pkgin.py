@@ -9,6 +9,7 @@ Package support for pkgin based systems, inspired from freebsdpkg module
 """
 
 # Import python libs
+
 import copy
 import logging
 import os
@@ -694,7 +695,7 @@ def normalize_name(pkgs, **kwargs):
 
     .. note::
         Nothing special to do to normalize, just return
-        the original. (We do need it to be compatible
+        the original. (We do need it to be comaptible
         with the pkg_resource provider.)
     """
     return pkgs

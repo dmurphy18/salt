@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Initialization of PostgreSQL data directory
 ===========================================
@@ -19,10 +18,11 @@ data directory.
         - encoding: UTF8
         - locale: C
         - runas: postgres
-        - checksums: True
-        - waldir: /var/postgresql/wal
+        - allow_group_access: True
+        - data_checksums: True
+        - wal_segsize: 32
+
 """
-from __future__ import absolute_import, print_function, unicode_literals
 
 
 def __virtual__():
@@ -85,13 +85,13 @@ def present(
     runas
         The system user the operation should be performed on behalf of
     """
-    _cmt = "Postgres data directory {0} is already present".format(name)
+    _cmt = "Postgres data directory {} is already present".format(name)
     ret = {"name": name, "changes": {}, "result": True, "comment": _cmt}
 
     if not __salt__["postgres.datadir_exists"](name=name):
         if __opts__["test"]:
             ret["result"] = None
-            _cmt = "Postgres data directory {0} is set to be initialized".format(name)
+            _cmt = "Postgres data directory {} is set to be initialized".format(name)
             ret["comment"] = _cmt
             return ret
 
@@ -107,11 +107,11 @@ def present(
         )
 
         if __salt__["postgres.datadir_init"](name, **kwargs):
-            _cmt = "Postgres data directory {0} has been initialized".format(name)
+            _cmt = "Postgres data directory {} has been initialized".format(name)
             ret["comment"] = _cmt
             ret["changes"][name] = "Present"
         else:
-            _cmt = "Postgres data directory {0} initialization failed".format(name)
+            _cmt = "Postgres data directory {} initialization failed".format(name)
             ret["result"] = False
             ret["comment"] = _cmt
 

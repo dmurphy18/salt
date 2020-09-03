@@ -4,14 +4,6 @@ A REST API for Salt
 
 .. py:currentmodule:: salt.netapi.rest_cherrypy.app
 
-.. note::
-
-    This module is Experimental on Windows platforms and supports limited
-    configurations:
-
-    - doesn't support PAM authentication (i.e. external_auth: auto)
-    - doesn't support SSL (i.e. disable_ssl: True)
-
 :depends:
     - CherryPy Python module.
 
@@ -593,9 +585,9 @@ import signal
 import tarfile
 from collections.abc import Iterator, Mapping
 from multiprocessing import Pipe, Process
-from urllib.parse import parse_qsl
 
 import cherrypy  # pylint: disable=import-error,3rd-party-module-not-gated
+
 import salt
 import salt.auth
 import salt.exceptions
@@ -626,8 +618,8 @@ except ImportError:
 
 try:
     # Imports related to websocket
-    from .tools import websockets
     from . import event_processor
+    from .tools import websockets
 
     HAS_WEBSOCKETS = True
 except ImportError:
@@ -944,8 +936,8 @@ def process_request_body(fn):
 
 def urlencoded_processor(entity):
     """
-    Accept x-www-form-urlencoded data and reformat it into a Low State
-    data structure.
+    Accept x-www-form-urlencoded data (run through CherryPy's formatter)
+    and reformat it into a Low State data structure.
 
     Since we can't easily represent complicated data structures with
     key-value pairs, any more complicated requirements (e.g. compound
@@ -960,15 +952,11 @@ def urlencoded_processor(entity):
 
     :param entity: raw POST data
     """
-    # cherrypy._cpreqbody.process_urlencoded doesn't preserve the raw
-    # "body", so we have to handle parsing the tokens using parse_qsl
-    urlencoded = entity.read()
-    try:
-        urlencoded = urlencoded.decode("utf-8")
-    except (UnicodeDecodeError, AttributeError):
-        pass
-    cherrypy.serving.request.raw_body = urlencoded
-    cherrypy.serving.request.unserialized_data = dict(parse_qsl(urlencoded))
+    # First call out to CherryPy's default processor
+    cherrypy._cpreqbody.process_urlencoded(entity)
+    cherrypy._cpreqbody.process_urlencoded(entity)
+    cherrypy.serving.request.unserialized_data = entity.params
+    cherrypy.serving.request.raw_body = ""
 
 
 @process_request_body

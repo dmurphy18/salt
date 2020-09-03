@@ -24,11 +24,6 @@ via `tornado.web.RequestHandler.request`.
 
 import calendar
 import collections
-try:
-    import collections.abc as abcs
-except ImportError:
-    import collections as abcs
-
 import copy
 import datetime
 import email.utils

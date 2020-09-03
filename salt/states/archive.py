@@ -5,6 +5,7 @@ Extract an archive
 """
 
 # Import Python libs
+
 import errno
 import logging
 import os
@@ -14,7 +15,6 @@ import stat
 import string
 import tarfile
 from contextlib import closing
-from urllib.parse import urlparse
 
 # Import Salt libs
 import salt.utils.args
@@ -24,6 +24,10 @@ import salt.utils.path
 import salt.utils.platform
 import salt.utils.url
 from salt.exceptions import CommandExecutionError, CommandNotFoundError
+
+# Import 3rd-party libs
+from salt.ext.six.moves import shlex_quote as _cmd_quote
+from salt.ext.six.moves.urllib.parse import urlparse as _urlparse
 
 log = logging.getLogger(__name__)
 
@@ -67,14 +71,17 @@ def _checksum_file_path(path):
         if re.match(r"..[/\\]", relpath):
             # path is a local file
             relpath = salt.utils.path.join(
-                "local", os.path.splitdrive(path)[-1].lstrip("/\\"),
+                "local",
+                os.path.splitdrive(path)[-1].lstrip("/\\"),
             )
     except ValueError as exc:
         # The path is on a different drive (Windows)
         if str(exc).startswith("path is on"):
             drive, path = os.path.splitdrive(path)
             relpath = salt.utils.path.join(
-                "local", drive.rstrip(":"), path.lstrip("/\\"),
+                "local",
+                drive.rstrip(":"),
+                path.lstrip("/\\"),
             )
         elif str(exc).startswith("Cannot mix UNC"):
             relpath = salt.utils.path.join("unc", path)
@@ -427,7 +434,7 @@ def extracted(
         changed but only checksums of the archive will be checked to determine if
         the extraction is required.
 
-        It will try to find a local cache of the ``source`` and check its hash against
+        It will try to find a local cache of the ``source`` and check its hash agains
         the ``source_hash``. If there is no local cache available, for example if you
         set the ``keep_source`` to ``False``,  it will try to find a cached source hash
         file in the Minion archives cache directory.
@@ -439,7 +446,7 @@ def extracted(
 
         .. warning::
             With this argument set to ``True`` Salt will only check for the ``source_hash``
-            against the local hash of the ``sourse``. So if you, for example, remove extracted
+            agains the local hash of the ``sourse``. So if you, for example, remove extracted
             files without clearing the Salt Minion cache next time you execute the state Salt
             will not notice that extraction is required if the hashes are still match.
 
@@ -826,7 +833,7 @@ def extracted(
         ret["comment"] = 'Invalid source "{}"'.format(source)
         return ret
 
-    urlparsed_source = urlparse(source_match)
+    urlparsed_source = _urlparse(source_match)
     urlparsed_scheme = urlparsed_source.scheme
     urlparsed_path = os.path.join(
         urlparsed_source.netloc, urlparsed_source.path
@@ -869,7 +876,8 @@ def extracted(
             "Invalid archive_format '{}'. Either set it to a supported "
             "value ({}) or remove this argument and the archive format will "
             "be guessed based on file extension.".format(
-                archive_format, ", ".join(valid_archive_formats),
+                archive_format,
+                ", ".join(valid_archive_formats),
             )
         )
         return ret
@@ -954,7 +962,7 @@ def extracted(
     if trim_output:
         if trim_output is True:
             trim_output = 100
-        elif not isinstance(trim_output, (bool, int)):
+        elif not isinstance(trim_output, (bool, (int,))):
             try:
                 # Try to handle cases where trim_output was passed as a
                 # string-ified integer.
@@ -997,7 +1005,7 @@ def extracted(
         # If file was not cached we still could have a pre-existing hash file which would be
         # generated if update_source was set to True.
         else:
-            parsed = urlparse(source_match)
+            parsed = _urlparse(source_match)
             # This path would be generated if this file would be cached by file.cached state
             # We have to mimic it due to questionable logic in the _checksum_file_path function
             expected_cached_path = salt.utils.path.join(
@@ -1160,7 +1168,9 @@ def extracted(
             "top-level directory by adding it to the 'name' "
             "value (for example, setting 'name' to {} "
             "instead of {}).".format(
-                archive_format, os.path.join(name, "some_dir"), name,
+                archive_format,
+                os.path.join(name, "some_dir"),
+                name,
             )
         )
         return ret
@@ -1436,7 +1446,7 @@ def extracted(
                                 # pipe it to tar for extraction.
                                 cmd = "xz --decompress --stdout {0} | tar xvf -"
                                 results = __salt__["cmd.run_all"](
-                                    cmd.format(shlex.quote(cached)),
+                                    cmd.format(_cmd_quote(cached)),
                                     cwd=name,
                                     python_shell=True,
                                 )
@@ -1630,7 +1640,8 @@ def extracted(
                 ret["changes"]["directories_created"] = [name]
             ret["changes"]["extracted_files"] = files
             ret["comment"] = "{} extracted to {}".format(
-                salt.utils.url.redact_http_basic_auth(source_match), name,
+                salt.utils.url.redact_http_basic_auth(source_match),
+                name,
             )
             _add_explanation(ret, source_hash_trigger, contents_missing)
             ret["comment"] += ". Output was trimmed to {} number of lines".format(

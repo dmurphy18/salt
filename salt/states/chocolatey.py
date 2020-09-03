@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Manage Chocolatey package installs
 .. versionadded:: 2016.3.0
@@ -12,7 +10,6 @@ Manage Chocolatey package installs
 """
 
 # Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 # Import Salt libs
 import salt.utils.data
@@ -40,7 +37,6 @@ def installed(
     force_x86=False,
     package_args=None,
     allow_multiple=False,
-    execution_timeout=None,
 ):
     """
     Installs a package if not already installed
@@ -88,10 +84,6 @@ def installed(
 
             .. versionadded:: 2017.7.0
 
-        execution_timeout (str):
-            Chocolatey execution timeout value you want to pass to the
-            installation process. Default is None.
-
     .. code-block:: yaml
 
         Installsomepackage:
@@ -115,7 +107,7 @@ def installed(
     # Package not installed
     if name.lower() not in [package.lower() for package in pre_install.keys()]:
         if version:
-            ret["changes"] = {name: "Version {0} will be installed".format(version)}
+            ret["changes"] = {name: "Version {} will be installed".format(version)}
         else:
             ret["changes"] = {name: "Latest version will be installed"}
 
@@ -138,28 +130,26 @@ def installed(
             ):
                 if force:
                     ret["changes"] = {
-                        name: "Version {0} will be reinstalled".format(version)
+                        name: "Version {} will be reinstalled".format(version)
                     }
-                    ret["comment"] = "Reinstall {0} {1}".format(full_name, version)
+                    ret["comment"] = "Reinstall {} {}".format(full_name, version)
                 else:
-                    ret["comment"] = "{0} {1} is already installed".format(
-                        name, version
-                    )
+                    ret["comment"] = "{} {} is already installed".format(name, version)
                     if __opts__["test"]:
                         ret["result"] = None
                     return ret
             else:
                 if allow_multiple:
                     ret["changes"] = {
-                        name: "Version {0} will be installed side by side with "
-                        "Version {1} if supported".format(version, installed_version)
+                        name: "Version {} will be installed side by side with "
+                        "Version {} if supported".format(version, installed_version)
                     }
                     ret["comment"] = "Install {0} {1} side-by-side with {0} {2}".format(
                         full_name, version, installed_version
                     )
                 else:
                     ret["changes"] = {
-                        name: "Version {0} will be installed over Version {1}".format(
+                        name: "Version {} will be installed over Version {}".format(
                             version, installed_version
                         )
                     }
@@ -171,11 +161,11 @@ def installed(
             version = installed_version
             if force:
                 ret["changes"] = {
-                    name: "Version {0} will be reinstalled".format(version)
+                    name: "Version {} will be reinstalled".format(version)
                 }
-                ret["comment"] = "Reinstall {0} {1}".format(full_name, version)
+                ret["comment"] = "Reinstall {} {}".format(full_name, version)
             else:
-                ret["comment"] = "{0} {1} is already installed".format(name, version)
+                ret["comment"] = "{} {} is already installed".format(name, version)
                 if __opts__["test"]:
                     ret["result"] = None
                 return ret
@@ -197,7 +187,6 @@ def installed(
         force_x86=force_x86,
         package_args=package_args,
         allow_multiple=allow_multiple,
-        execution_timeout=execution_timeout,
     )
 
     if "Running chocolatey failed" not in result:
@@ -206,7 +195,7 @@ def installed(
         ret["result"] = False
 
     if not ret["result"]:
-        ret["comment"] = "Failed to install the package {0}".format(name)
+        ret["comment"] = "Failed to install the package {}".format(name)
 
     # Get list of installed packages after 'chocolatey.install'
     post_install = __salt__["chocolatey.list"](local_only=True)
@@ -255,14 +244,14 @@ def uninstalled(name, version=None, uninstall_args=None, override_args=False):
     if name.lower() in [package.lower() for package in pre_uninstall.keys()]:
         try:
             ret["changes"] = {
-                name: "{0} version {1} will be removed".format(
+                name: "{} version {} will be removed".format(
                     name, pre_uninstall[name][0]
                 )
             }
         except KeyError:
-            ret["changes"] = {name: "{0} will be removed".format(name)}
+            ret["changes"] = {name: "{} will be removed".format(name)}
     else:
-        ret["comment"] = "The package {0} is not installed".format(name)
+        ret["comment"] = "The package {} is not installed".format(name)
         return ret
 
     if __opts__["test"]:
@@ -281,7 +270,7 @@ def uninstalled(name, version=None, uninstall_args=None, override_args=False):
         ret["result"] = False
 
     if not ret["result"]:
-        ret["comment"] = "Failed to uninstall the package {0}".format(name)
+        ret["comment"] = "Failed to uninstall the package {}".format(name)
 
     # Get list of installed packages after 'chocolatey.uninstall'
     post_uninstall = __salt__["chocolatey.list"](local_only=True)
@@ -362,8 +351,8 @@ def upgraded(
     # Package not installed
     if name.lower() not in [package.lower() for package in pre_install.keys()]:
         if version:
-            ret["changes"][name] = "Version {0} will be installed".format(version)
-            ret["comment"] = "Install version {0}".format(version)
+            ret["changes"][name] = "Version {} will be installed".format(version)
+            ret["comment"] = "Install version {}".format(version)
         else:
             ret["changes"][name] = "Latest version will be installed"
             ret["comment"] = "Install latest version"
@@ -391,12 +380,12 @@ def upgraded(
                 ver1=installed_version, oper="==", ver2=version
             ):
                 if force:
-                    ret["changes"][name] = "Version {0} will be reinstalled".format(
+                    ret["changes"][name] = "Version {} will be reinstalled".format(
                         version
                     )
-                    ret["comment"] = "Reinstall {0} {1}".format(full_name, version)
+                    ret["comment"] = "Reinstall {} {}".format(full_name, version)
                 else:
-                    ret["comment"] = "{0} {1} is already installed".format(
+                    ret["comment"] = "{} {} is already installed".format(
                         name, installed_version
                     )
             else:
@@ -406,15 +395,15 @@ def upgraded(
                 ):
                     ret["changes"][
                         name
-                    ] = "Version {0} will be upgraded to Version {1}".format(
+                    ] = "Version {} will be upgraded to Version {}".format(
                         installed_version, version
                     )
-                    ret["comment"] = "Upgrade {0} {1} to {2}".format(
+                    ret["comment"] = "Upgrade {} {} to {}".format(
                         full_name, installed_version, version
                     )
                 # If installed version is newer than new version
                 else:
-                    ret["comment"] = "{0} {1} (newer) is already installed".format(
+                    ret["comment"] = "{} {} (newer) is already installed".format(
                         name, installed_version
                     )
         # Catch all for a condition where version is not passed and there is no
@@ -445,10 +434,10 @@ def upgraded(
     )
 
     if "Running chocolatey failed" not in result:
-        ret["comment"] = "Package {0} upgraded successfully".format(name)
+        ret["comment"] = "Package {} upgraded successfully".format(name)
         ret["result"] = True
     else:
-        ret["comment"] = "Failed to upgrade the package {0}".format(name)
+        ret["comment"] = "Failed to upgrade the package {}".format(name)
         ret["result"] = False
 
     # Get list of installed packages after 'chocolatey.install'

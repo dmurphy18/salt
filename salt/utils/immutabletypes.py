@@ -71,12 +71,6 @@ class ImmutableList(Sequence):
     def __deepcopy__(self, memo):
         return copy.deepcopy(self.__obj)
 
-    def copy(self):
-        """
-        Return an un-frozen copy of self
-        """
-        return copy.deepcopy(self.__obj)
-
 
 class ImmutableSet(Set):
     """
@@ -99,12 +93,6 @@ class ImmutableSet(Set):
         return "<{} {}>".format(self.__class__.__name__, repr(self.__obj))
 
     def __deepcopy__(self, memo):
-        return copy.deepcopy(self.__obj)
-
-    def copy(self):
-        """
-        Return an un-frozen copy of self
-        """
         return copy.deepcopy(self.__obj)
 
 

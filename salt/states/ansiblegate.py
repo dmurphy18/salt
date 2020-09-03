@@ -127,8 +127,6 @@ def _changes(plays):
             for host, data in task["hosts"].items():
                 if data["changed"] is True:
                     host_changes[host] = data.get("diff", data.get("changes", {}))
-                elif any(x in data for x in ["failed", "skipped", "unreachable"]):
-                    host_changes[host] = data.get("results", data.get("msg", {}))
             if host_changes:
                 task_changes[task["task"]["name"]] = host_changes
         if task_changes:
@@ -179,61 +177,24 @@ def playbooks(name, rundir=None, git_repo=None, git_kwargs=None, ansible_kwargs=
     if not isinstance(ansible_kwargs, dict):
         log.debug("Setting ansible_kwargs to empty dict: %s", ansible_kwargs)
         ansible_kwargs = {}
-    if __opts__["test"]:
-        checks = __salt__["ansible.playbooks"](
-            name, rundir=rundir, check=True, diff=True, **ansible_kwargs
-        )
-        if all(
-            not check["changed"]
-            and not check["failures"]
-            and not check["unreachable"]
-            and not check["skipped"]
-            for check in checks["stats"].values()
-        ):
-            ret["comment"] = "No changes to be made from playbook {}".format(name)
-            ret["result"] = True
-        elif any(
-            check["changed"]
-            and not check["failures"]
-            and not check["unreachable"]
-            and not check["skipped"]
-            for check in checks["stats"].values()
-        ):
-            ret["comment"] = "Changes will be made from playbook {}".format(name)
-            ret["result"] = None
-            ret["changes"] = _changes(checks)
-        else:
-            ret["comment"] = "There were some issues running the playbook {}".format(
-                name
-            )
-            ret["result"] = False
-            ret["changes"] = _changes(checks)
+    checks = __salt__["ansible.playbooks"](
+        name, rundir=rundir, check=True, diff=True, **ansible_kwargs
+    )
+    if all(not check["changed"] for check in checks["stats"].values()):
+        ret["comment"] = "No changes to be made from playbook {}".format(name)
+        ret["result"] = True
+    elif __opts__["test"]:
+        ret["comment"] = "Changes will be made from playbook {}".format(name)
+        ret["result"] = None
+        ret["changes"] = _changes(checks)
     else:
         results = __salt__["ansible.playbooks"](
             name, rundir=rundir, diff=True, **ansible_kwargs
         )
-        if all(
-            not check["changed"]
-            and not check["failures"]
-            and not check["unreachable"]
-            and not check["skipped"]
-            for check in results["stats"].values()
-        ):
-            ret["comment"] = "No changes to be made from playbook {}".format(name)
-            ret["result"] = True
-            ret["changes"] = _changes(results)
-        else:
-            ret["changes"] = _changes(results)
-            ret["result"] = all(
-                not check["failures"]
-                and not check["unreachable"]
-                and not check["skipped"]
-                for check in results["stats"].values()
-            )
-            if ret["result"]:
-                ret["comment"] = "Changes were made by playbook {}".format(name)
-            else:
-                ret[
-                    "comment"
-                ] = "There were some issues running the playbook {}".format(name)
+        ret["comment"] = "Changes were made by playbook {}".format(name)
+        ret["changes"] = _changes(results)
+        ret["result"] = all(
+            not check["failures"] and not check["unreachable"]
+            for check in checks["stats"].values()
+        )
     return ret

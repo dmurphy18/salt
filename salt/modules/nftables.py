@@ -153,34 +153,8 @@ def build_rule(
         del kwargs["state"]
 
     if "connstate" in kwargs:
-        rule += "ct state {{ {0} }} ".format(kwargs["connstate"])
+        rule += "ct state {{ {0}}} ".format(kwargs["connstate"])
         del kwargs["connstate"]
-
-    if "icmp-type" in kwargs:
-        rule += "icmp type {{ {0} }} ".format(kwargs["icmp-type"])
-        del kwargs["icmp-type"]
-
-    if "pkttype" in kwargs:
-        rule += "meta pkttype {{ {0} }} ".format(kwargs["pkttype"])
-        del kwargs["pkttype"]
-
-    if "counter" in kwargs:
-        rule += "counter "
-        del kwargs["counter"]
-
-    if "saddr" in kwargs or "source" in kwargs:
-        rule += "ip saddr {}".format(kwargs.get("saddr") or kwargs.get("source"))
-        if "saddr" in kwargs:
-            del kwargs["saddr"]
-        if "source" in kwargs:
-            del kwargs["source"]
-
-    if "daddr" in kwargs or "destination" in kwargs:
-        rule += "ip daddr {}".format(kwargs.get("daddr") or kwargs.get("destination"))
-        if "daddr" in kwargs:
-            del kwargs["daddr"]
-        if "destination" in kwargs:
-            del kwargs["destination"]
 
     if "dport" in kwargs:
         kwargs["dport"] = str(kwargs["dport"])
@@ -232,29 +206,20 @@ def build_rule(
         after_jump.append("{} ".format(kwargs["j"]))
         del kwargs["j"]
 
-    if "redirect-to" in kwargs or "to-port" in kwargs:
-        after_jump.append(
-            "redirect to {} ".format(kwargs.get("redirect-to") or kwargs.get("to-port"))
-        )
-        if "redirect-to" in kwargs:
-            del kwargs["redirect-to"]
-        if "to-port" in kwargs:
-            del kwargs["to-port"]
+    if "to-port" in kwargs:
+        after_jump.append("--to-port {} ".format(kwargs["to-port"]))
+        del kwargs["to-port"]
 
     if "to-ports" in kwargs:
         after_jump.append("--to-ports {} ".format(kwargs["to-ports"]))
         del kwargs["to-ports"]
 
-    if "to-source" in kwargs:
-        after_jump.append("{} ".format(kwargs["to-source"]))
-        del kwargs["to-source"]
-
     if "to-destination" in kwargs:
-        after_jump.append("{} ".format(kwargs["to-destination"]))
+        after_jump.append("--to-destination {} ".format(kwargs["to-destination"]))
         del kwargs["to-destination"]
 
     if "reject-with" in kwargs:
-        after_jump.append("reject with {} ".format(kwargs["reject-with"]))
+        after_jump.append("--reject-with {} ".format(kwargs["reject-with"]))
         del kwargs["reject-with"]
 
     for item in after_jump:
@@ -345,20 +310,13 @@ def list_tables(family="ipv4"):
     """
     nft_family = _NFTABLES_FAMILIES[family]
     tables = []
-    cmd = "{} --json --numeric --numeric --numeric list tables {}".format(
+    cmd = "{} --json --numeric --numeric --numeric " "list tables {}".format(
         _nftables_cmd(), nft_family
     )
     out = __salt__["cmd.run"](cmd, python_shell=False)
     if not out:
         return tables
-
-    try:
-        data = json.loads(out)
-    except ValueError:
-        return tables
-
-    if not data or not data.get("nftables"):
-        return tables
+    data = json.loads(out)
 
     for item in data.get("nftables", []):
         if "metainfo" not in item:
@@ -394,48 +352,9 @@ def get_rules(family="ipv4"):
     return rules
 
 
-def get_rules_json(family="ipv4"):
-    """
-    .. versionadded:: Magnesium
-
-    Return a list of dictionaries comprising the current, in-memory rules
-
-    family
-        Networking family, either ipv4 or ipv6
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' nftables.get_rules_json
-
-        salt '*' nftables.get_rules_json family=ipv6
-
-    """
-    nft_family = _NFTABLES_FAMILIES[family]
-    rules = []
-    cmd = "{} --numeric --numeric --numeric --json list ruleset {}".format(
-        _nftables_cmd(), nft_family
-    )
-    out = __salt__["cmd.run"](cmd, python_shell=False)
-    if not out:
-        return rules
-
-    try:
-        rules = (json.loads(out))["nftables"]
-    except (KeyError, ValueError):
-        return rules
-
-    return rules
-
-
 def save(filename=None, family="ipv4"):
     """
-    .. versionchanged:: Magnesium
-
-    Save the current in-memory rules to disk. On systems where /etc/nftables is
-    a directory, a file named salt-all-in-one.nft will be dropped inside by default.
-    The main nftables configuration will need to include this file.
+    Save the current in-memory rules to disk
 
     CLI Example:
 
@@ -446,21 +365,14 @@ def save(filename=None, family="ipv4"):
     if _conf() and not filename:
         filename = _conf()
 
-    # Not a typo. Invert the dictionary twice to get unique values only.
-    nft_families = {v: k for k, v in _NFTABLES_FAMILIES.items()}
-    nft_families = {v: k for k, v in _NFTABLES_FAMILIES.items()}
-
+    nft_families = ["ip", "ip6", "arp", "bridge"]
     rules = "#! nft -f\n"
-
     for family in nft_families:
         out = get_rules(family)
         if out:
             rules += "\n"
         rules = rules + "\n".join(out)
     rules = rules + "\n"
-
-    if __salt__["file.directory_exists"](filename):
-        filename = "{}/salt-all-in-one.nft".format(filename)
 
     try:
         with salt.utils.files.fopen(filename, "wb") as _fh:
@@ -782,7 +694,7 @@ def new_chain(
         return ret
 
     nft_family = _NFTABLES_FAMILIES[family]
-    cmd = "{} -- add chain {} {} {}".format(_nftables_cmd(), nft_family, table, chain)
+    cmd = "{} add chain {} {} {}".format(_nftables_cmd(), nft_family, table, chain)
     if table_type or hook or priority:
         if table_type and hook and str(priority):
             cmd = r"{0} \{{ type {1} hook {2} priority {3}\; \}}".format(
@@ -919,7 +831,7 @@ def append(table="filter", chain=None, rule=None, family="ipv4"):
     )
     out = __salt__["cmd.run"](cmd, python_shell=False)
 
-    if not out:
+    if len(out) == 0:
         ret["result"] = True
         ret["comment"] = 'Added rule "{}" chain {} in table {} in family {}.'.format(
             rule, chain, table, family
@@ -1004,7 +916,7 @@ def insert(table="filter", chain=None, position=None, rule=None, family="ipv4"):
         )
     out = __salt__["cmd.run"](cmd, python_shell=False)
 
-    if not out:
+    if len(out) == 0:
         ret["result"] = True
         ret["comment"] = 'Added rule "{}" chain {} in table {} in family {}.'.format(
             rule, chain, table, family
@@ -1081,7 +993,7 @@ def delete(table, chain=None, position=None, rule=None, family="ipv4"):
     )
     out = __salt__["cmd.run"](cmd, python_shell=False)
 
-    if not out:
+    if len(out) == 0:
         ret["result"] = True
         ret[
             "comment"
@@ -1139,120 +1051,9 @@ def flush(table="filter", chain="", family="ipv4"):
         comment = "from table {} in family {}.".format(table, family)
     out = __salt__["cmd.run"](cmd, python_shell=False)
 
-    if not out:
+    if len(out) == 0:
         ret["result"] = True
         ret["comment"] = "Flushed rules {}".format(comment)
     else:
         ret["comment"] = "Failed to flush rules {}".format(comment)
     return ret
-
-
-def get_policy(table="filter", chain=None, family="ipv4"):
-    """
-    .. versionadded:: Magnesium
-
-    Return the current policy for the specified table/chain
-
-    table
-        Name of the table containing the chain to check
-
-    chain
-        Name of the chain to get the policy for
-
-    family
-        Networking family, either ipv4 or ipv6
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' nftables.get_policy filter input
-
-        IPv6:
-        salt '*' nftables.get_policy filter input family=ipv6
-    """
-    if not chain:
-        return "Error: Chain needs to be specified"
-
-    nft_family = _NFTABLES_FAMILIES[family]
-
-    rules = get_rules_json(family=nft_family)
-
-    try:
-        for rule in rules["nftables"]:
-            if (
-                rule.get("chain", {}).get("name") == chain
-                and rule.get("chain", {}).get("type") == table
-            ):
-                return rule["chain"]["policy"]
-    except (KeyError, TypeError, ValueError):
-        return None
-
-
-def set_policy(table="filter", chain=None, policy=None, family="ipv4"):
-    """
-    .. versionadded:: Magnesium
-
-    Set the current policy for the specified table/chain. This only works on
-    chains with an existing base chain.
-
-    table
-        Name of the table containing the chain to modify
-
-    chain
-        Name of the chain to set the policy for
-
-    policy
-        accept or drop
-
-    family
-        Networking family, either ipv4 or ipv6
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' nftables.set_policy filter input accept
-
-        IPv6:
-        salt '*' nftables.set_policy filter input accept family=ipv6
-    """
-    if not chain:
-        return "Error: Chain needs to be specified"
-    if not policy:
-        return "Error: Policy needs to be specified"
-
-    nft_family = _NFTABLES_FAMILIES[family]
-
-    chain_info = {}
-    rules = get_rules_json(family=nft_family)
-
-    if not rules:
-        return False
-
-    for rule in rules:
-        try:
-            if rule["chain"]["table"] == table and rule["chain"]["name"] == chain:
-                chain_info = rule["chain"]
-                break
-        except KeyError:
-            continue
-
-    if not chain_info:
-        return False
-
-    cmd = "{} add chain {} {} {}".format(_nftables_cmd(), nft_family, table, chain)
-
-    # We can't infer the base chain parameters. Bail out if they're not present.
-    if "type" not in chain_info or "hook" not in chain_info or "prio" not in chain_info:
-        return False
-
-    params = "type {} hook {} priority {};".format(
-        chain_info["type"], chain_info["hook"], chain_info["prio"]
-    )
-
-    cmd = '{0} "{{ {1} policy {2}; }}"'.format(cmd, params, policy)
-
-    out = __salt__["cmd.run_all"](cmd, python_shell=False)
-
-    return not out["retcode"]

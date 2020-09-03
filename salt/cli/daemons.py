@@ -26,7 +26,6 @@ warnings.filterwarnings(
     "",  # No deprecation message matchHAS_PSUTIL
     DeprecationWarning,  # This filter is for DeprecationWarnings
     r"^(salt|salt\.(.*))$",  # Match module(s) 'salt' and 'salt.<whatever>'
-    append=True,
 )
 
 # While we are supporting Python2.6, hide nested with-statements warnings
@@ -34,7 +33,6 @@ warnings.filterwarnings(
     "ignore",
     "With-statements now directly support multiple context managers",
     DeprecationWarning,
-    append=True,
 )
 
 # Filter the backports package UserWarning about being re-imported
@@ -42,7 +40,6 @@ warnings.filterwarnings(
     "ignore",
     "^Module backports was already imported from (.*), but (.*) is being added to sys.path$",
     UserWarning,
-    append=True,
 )
 
 
@@ -436,9 +433,9 @@ class ProxyMinion(
         """
         super().prepare()
 
-        # commented due to native minion support
-        # if not self.values.proxyid:
-        #     self.error('salt-proxy requires --proxyid')
+        ## commented due to native minion support
+        ## if not self.values.proxyid:
+        ##     self.error("salt-proxy requires --proxyid")
 
         # Proxies get their ID from the command line.  This may need to change in
         # the future.

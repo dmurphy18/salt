@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 Utility functions for use with or in SLS files
 """
 
 # Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import textwrap
@@ -155,8 +153,8 @@ def renderer(path=None, string=None, default_renderer="jinja|yaml", **kwargs):
 
         salt '*' slsutil.renderer salt://path/to/file
         salt '*' slsutil.renderer /path/to/file
-        salt '*' slsutil.renderer /path/to/file.jinja default_renderer='jinja'
-        salt '*' slsutil.renderer /path/to/file.sls default_renderer='jinja|yaml'
+        salt '*' slsutil.renderer /path/to/file.jinja 'jinja'
+        salt '*' slsutil.renderer /path/to/file.sls 'jinja|yaml'
         salt '*' slsutil.renderer string='Inline template! {{ saltenv }}'
         salt '*' slsutil.renderer string='Hello, {{ name }}.' name='world'
     """
@@ -191,12 +189,12 @@ def _get_serialize_fn(serializer, fn_name):
 
     if not fns:
         raise salt.exceptions.CommandExecutionError(
-            "Serializer '{0}' not found.".format(serializer)
+            "Serializer '{}' not found.".format(serializer)
         )
 
     if not fn:
         raise salt.exceptions.CommandExecutionError(
-            "Serializer '{0}' does not implement {1}.".format(serializer, fn_name)
+            "Serializer '{}' does not implement {}.".format(serializer, fn_name)
         )
 
     return fn

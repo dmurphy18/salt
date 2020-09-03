@@ -14,6 +14,7 @@ Utils for the NAPALM modules and proxy.
 .. versionadded:: 2017.7.0
 """
 
+# Import Python libs
 
 import copy
 import importlib
@@ -25,6 +26,7 @@ import salt.output
 import salt.utils.args
 import salt.utils.platform
 
+# Import third party libs
 try:
     # will try to import NAPALM
     # https://github.com/napalm-automation/napalm
@@ -179,8 +181,10 @@ def call(napalm_device, method, *args, **kwargs):
             traceback.format_exc()
         )  # let's get the full traceback and display for debugging reasons.
         if isinstance(error, NotImplementedError):
-            comment = "{method} is not implemented for the NAPALM {driver} driver!".format(
-                method=method, driver=napalm_device.get("DRIVER_NAME")
+            comment = (
+                "{method} is not implemented for the NAPALM {driver} driver!".format(
+                    method=method, driver=napalm_device.get("DRIVER_NAME")
+                )
             )
         elif (
             retry

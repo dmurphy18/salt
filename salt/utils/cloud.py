@@ -22,6 +22,8 @@ import time
 import traceback
 import uuid
 
+from jinja2 import Template
+
 import salt.client
 
 # Import salt cloud libs
@@ -44,7 +46,6 @@ import salt.utils.stringutils
 import salt.utils.versions
 import salt.utils.vt
 import salt.utils.yaml
-from jinja2 import Template
 from salt.exceptions import (
     SaltCloudConfigError,
     SaltCloudException,
@@ -69,10 +70,10 @@ except ImportError:
 
 try:
     from pypsexec.client import Client as PsExecClient
-    from pypsexec.scmr import Service as ScmrService
     from pypsexec.exceptions import SCMRException
-    from smbprotocol.tree import TreeConnect
+    from pypsexec.scmr import Service as ScmrService
     from smbprotocol.exceptions import SMBResponseException
+    from smbprotocol.tree import TreeConnect
 
     logging.getLogger("smbprotocol").setLevel(logging.WARNING)
     logging.getLogger("pypsexec").setLevel(logging.WARNING)
@@ -1298,7 +1299,10 @@ def deploy_windows(
         local_path = "/".join(comps[:-1])
         installer = comps[-1]
         salt.utils.smb.put_file(
-            win_installer, "salttemp\\{}".format(installer), "C$", conn=smb_conn,
+            win_installer,
+            "salttemp\\{}".format(installer),
+            "C$",
+            conn=smb_conn,
         )
 
         if use_winrm:
@@ -1790,7 +1794,9 @@ def deploy_script(
                         **ssh_kwargs
                     )
                     # The deploy command is now our wrapper
-                    deploy_command = "'{}/environ-deploy-wrapper.sh'".format(tmp_dir,)
+                    deploy_command = "'{}/environ-deploy-wrapper.sh'".format(
+                        tmp_dir,
+                    )
                 if root_cmd(deploy_command, tty, sudo, **ssh_kwargs) != 0:
                     raise SaltCloudSystemExit(
                         "Executing the command '{}' failed".format(deploy_command)
@@ -2697,7 +2703,7 @@ def cachedir_index_add(minion_id, profile, driver, provider, base=None):
         mode = "rb" if six.PY3 else "r"
         with salt.utils.files.fopen(index_file, mode) as fh_:
             index = salt.utils.data.decode(
-                salt.utils.msgpack.load(fh_, encoding=MSGPACK_ENCODING)
+                salt.utils.msgpack.msgpack.load(fh_, encoding=MSGPACK_ENCODING)
             )
     else:
         index = {}
@@ -2767,7 +2773,12 @@ def init_cachedir(base=None):
 
 # FIXME: This function seems used nowhere. Dead code?
 def request_minion_cachedir(
-    minion_id, opts=None, fingerprint="", pubkey=None, provider=None, base=None,
+    minion_id,
+    opts=None,
+    fingerprint="",
+    pubkey=None,
+    provider=None,
+    base=None,
 ):
     """
     Creates an entry in the requested/ cachedir. This means that Salt Cloud has
@@ -2802,7 +2813,10 @@ def request_minion_cachedir(
 
 
 def change_minion_cachedir(
-    minion_id, cachedir, data=None, base=None,
+    minion_id,
+    cachedir,
+    data=None,
+    base=None,
 ):
     """
     Changes the info inside a minion's cachedir entry. The type of cachedir
@@ -3429,7 +3443,12 @@ def userdata_template(opts, vm_, userdata):
         blacklist = opts["renderer_blacklist"]
         whitelist = opts["renderer_whitelist"]
         templated = salt.template.compile_template(
-            ":string:", rend, renderer, blacklist, whitelist, input_data=userdata,
+            ":string:",
+            rend,
+            renderer,
+            blacklist,
+            whitelist,
+            input_data=userdata,
         )
         if not isinstance(templated, str):
             # template renderers like "jinja" should return a StringIO

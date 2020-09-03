@@ -197,7 +197,7 @@ def check_role(username, role, **kwargs):
 
 def cmd(command, *args, **kwargs):
     """
-    NOTE: This function is preserved for backwards compatibility.  This allows
+    NOTE: This function is preserved for backwards compatibilty.  This allows
     commands to be executed using either of the following syntactic forms.
 
     salt '*' nxos.cmd <function>
@@ -566,7 +566,7 @@ def config(
         if file_str is False:
             raise CommandExecutionError("Source file {} not found".format(config_file))
     elif commands:
-        if isinstance(commands, str):
+        if isinstance(commands, ((str,), str)):
             commands = [commands]
         file_str = "\n".join(commands)
         # unify all the commands in a single file, to render them in a go
@@ -744,7 +744,7 @@ def set_password(
         Configure crypt_salt setting
         Default: None
 
-    algorithm
+    alogrithm
         Encryption algorithm
         Default: sha256
 

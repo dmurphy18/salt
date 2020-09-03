@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Installing of certificates to the Windows Certificate Manager
 =============================================================
@@ -12,7 +11,6 @@ Install certificates to the Windows Certificate Manager
         - store: TrustedPublisher
 """
 # Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 
@@ -59,14 +57,14 @@ def add_store(name, store, saltenv="base"):
         serials = __salt__["certutil.get_stored_cert_serials"](store)
 
         if cert_serial not in serials:
-            retcode = __salt__["certutil.add_store"](name, store, retcode=True)
-            if retcode == 0:
+            out = __salt__["certutil.add_store"](name, store)
+            if "successfully" in out:
                 ret["changes"]["added"] = name
             else:
                 ret["result"] = False
-                ret["comment"] += "Failed to store certificate {0}".format(name)
+                ret["comment"] += "Failed to store certificate {}".format(name)
         else:
-            ret["comment"] += "{0} already stored.".format(name)
+            ret["comment"] += "{} already stored.".format(name)
 
     return ret
 
@@ -98,13 +96,13 @@ def del_store(name, store, saltenv="base"):
         serials = __salt__["certutil.get_stored_cert_serials"](store)
 
         if cert_serial in serials:
-            retcode = __salt__["certutil.del_store"](cert_file, store, retcode=True)
-            if retcode == 0:
+            out = __salt__["certutil.del_store"](cert_file, store)
+            if "successfully" in out:
                 ret["changes"]["removed"] = name
             else:
                 ret["result"] = False
-                ret["comment"] += "Failed to remove the certificate {0}".format(name)
+                ret["comment"] += "Failed to remove the certificate {}".format(name)
         else:
-            ret["comment"] += "{0} already removed.".format(name)
+            ret["comment"] += "{} already removed.".format(name)
 
     return ret

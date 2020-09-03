@@ -28,16 +28,10 @@ More information: https://docker-py.readthedocs.io/en/stable/
 # Import Salt libs
 import salt.utils.json
 
-
-def _is_docker_module(mod):
-    required_attrs = ["APIClient", "from_env"]
-    return all(hasattr(mod, attr) for attr in required_attrs)
-
-
 try:
     import docker
 
-    HAS_DOCKER = _is_docker_module(docker)
+    HAS_DOCKER = True
 except ImportError:
     HAS_DOCKER = False
 

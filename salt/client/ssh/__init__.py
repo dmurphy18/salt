@@ -51,7 +51,7 @@ import salt.utils.verify
 from salt.ext import six
 from salt.ext.six.moves import input  # pylint: disable=import-error,redefined-builtin
 from salt.template import compile_template
-from salt.utils.platform import is_junos, is_windows
+from salt.utils.platform import is_windows
 from salt.utils.process import Process
 from salt.utils.zeromq import zmq
 
@@ -195,15 +195,13 @@ EOF'''.format(
     ]
 )
 
-if not is_windows() and not is_junos():
+if not is_windows():
     shim_file = os.path.join(os.path.dirname(__file__), "ssh_py_shim.py")
     if not os.path.exists(shim_file):
         # On esky builds we only have the .pyc file
         shim_file += "c"
     with salt.utils.files.fopen(shim_file) as ssh_py_shim:
         SSH_PY_SHIM = ssh_py_shim.read()
-else:
-    SSH_PY_SHIM = None
 
 log = logging.getLogger(__name__)
 
@@ -322,22 +320,6 @@ class SSH:
         )
         self.mods = mod_data(self.fsclient)
 
-    @property
-    def parse_tgt(self):
-        """
-        Method to determine the hostname and user
-        when bypassing the roster and using
-        ssh syntax (ex. root@localhost)
-        """
-        if not self.opts.get("ssh_cli_tgt"):
-            self.opts["ssh_cli_tgt"] = self.opts.get("tgt", "")
-        hostname = self.opts.get("ssh_cli_tgt", "")
-        if "@" in hostname:
-            user, hostname = hostname.split("@", 1)
-        else:
-            user = self.opts.get("ssh_user")
-        return {"hostname": hostname, "user": user}
-
     def _get_roster(self):
         """
         Read roster filename as a key to the data.
@@ -361,14 +343,18 @@ class SSH:
         :return:
         """
         # TODO: Support -L
-        hostname = self.parse_tgt["hostname"]
-        if isinstance(hostname, list):
+        target = self.opts["tgt"]
+        if isinstance(target, list):
             return
 
-        needs_expansion = "*" not in hostname and salt.utils.network.is_reachable_host(
-            hostname
+        hostname = self.opts["tgt"].split("@")[-1]
+        needs_expansion = (
+            "*" not in hostname
+            and salt.utils.network.is_reachable_host(hostname)
+            and salt.utils.network.is_ip(hostname)
         )
         if needs_expansion:
+            hostname = salt.utils.network.ip_to_host(hostname)
             if hostname is None:
                 # Reverse lookup failed
                 return
@@ -377,7 +363,7 @@ class SSH:
                 roster_data = self.__parsed_rosters[roster_filename]
                 if not isinstance(roster_data, bool):
                     for host_id in roster_data:
-                        if hostname in [host_id, roster_data[host_id].get("host")]:
+                        if hostname in [host_id, roster_data.get("host")]:
                             if hostname != self.opts["tgt"]:
                                 self.opts["tgt"] = hostname
                             self.__parsed_rosters[self.ROSTER_UPDATE_FLAG] = False
@@ -416,12 +402,17 @@ class SSH:
         Uptade targets in case hostname was directly passed without the roster.
         :return:
         """
-        hostname = self.parse_tgt["hostname"]
-        user = self.parse_tgt["user"]
+
+        hostname = self.opts.get("tgt", "")
+        if "@" in hostname:
+            user, hostname = hostname.split("@", 1)
+        else:
+            user = self.opts.get("ssh_user")
         if hostname == "*":
             hostname = ""
 
         if salt.utils.network.is_reachable_host(hostname):
+            hostname = salt.utils.network.ip_to_host(hostname)
             self.opts["tgt"] = hostname
             self.targets[hostname] = {
                 "passwd": self.opts.get("ssh_passwd", ""),
@@ -708,8 +699,6 @@ class SSH:
                     data = {"return": data}
                 if "id" not in data:
                     data["id"] = id_
-                if "fun" not in data:
-                    data["fun"] = fun
                 data[
                     "jid"
                 ] = jid  # make the jid in the payload the same as the jid in the tag
@@ -828,8 +817,6 @@ class SSH:
                     data = {"return": data}
                 if "id" not in data:
                     data["id"] = id_
-                if "fun" not in data:
-                    data["fun"] = fun
                 data[
                     "jid"
                 ] = jid  # make the jid in the payload the same as the jid in the tag

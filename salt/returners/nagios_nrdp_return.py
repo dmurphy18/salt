@@ -49,10 +49,10 @@ To override individual configuration items, append --return_kwargs '{"key:": "va
 """
 
 # Import python libs
-import html
-import http.client
+import cgi
 import logging
 
+import salt.ext.six.moves.http_client
 import salt.returners
 
 log = logging.getLogger(__name__)
@@ -112,20 +112,20 @@ def _prepare_xml(options=None, state=None):
     xml = "<?xml version='1.0'?>\n<checkresults>\n"
 
     # No service defined then we set the status of the hostname
-    if options.get("service"):
+    if "service" in options and options["service"] != "":
         xml += (
             "<checkresult type='service' checktype='" + str(options["checktype"]) + "'>"
         )
-        xml += "<hostname>" + html.escape(options["hostname"]) + "</hostname>"
-        xml += "<servicename>" + html.escape(options["service"]) + "</servicename>"
+        xml += "<hostname>" + cgi.escape(options["hostname"], True) + "</hostname>"
+        xml += "<servicename>" + cgi.escape(options["service"], True) + "</servicename>"
     else:
         xml += "<checkresult type='host' checktype='" + str(options["checktype"]) + "'>"
-        xml += "<hostname>" + html.escape(options["hostname"]) + "</hostname>"
+        xml += "<hostname>" + cgi.escape(options["hostname"], True) + "</hostname>"
 
     xml += "<state>" + _state + "</state>"
 
-    if options.get("output"):
-        xml += "<output>" + html.escape(options["output"]) + "</output>"
+    if "output" in options:
+        xml += "<output>" + cgi.escape(options["output"], True) + "</output>"
 
     xml += "</checkresult>"
 
@@ -162,7 +162,7 @@ def _post_data(options=None, xml=None):
         opts=__opts__,
     )
 
-    if res.get("status", None) == http.client.OK:
+    if res.get("status", None) == salt.ext.six.moves.http_client.OK:
         if res.get("dict", None) and isinstance(res["dict"], list):
             _content = res["dict"][0]
             if _content.get("status", None):

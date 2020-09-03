@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 Salt package
 """
 
 # Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import warnings
 
@@ -14,7 +12,6 @@ warnings.filterwarnings(
     "",  # No deprecation message match
     DeprecationWarning,  # This filter is for DeprecationWarnings
     r"^(salt|salt\.(.*))$",  # Match module(s) 'salt' and 'salt.<whatever>'
-    append=True,
 )
 
 # While we are supporting Python2.6, hide nested with-statements warnings
@@ -22,7 +19,6 @@ warnings.filterwarnings(
     "ignore",
     "With-statements now directly support multiple context managers",
     DeprecationWarning,
-    append=True,
 )
 
 # Filter the backports package UserWarning about being re-imported
@@ -30,7 +26,6 @@ warnings.filterwarnings(
     "ignore",
     "^Module backports was already imported from (.*), but (.*) is being added to sys.path$",
     UserWarning,
-    append=True,
 )
 
 

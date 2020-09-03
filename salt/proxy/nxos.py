@@ -68,7 +68,7 @@ save_config:
     instead of this option to improve performance.  The default behavior
     controlled by this option is preserved for backwards compatibility.
 
-Connection SSH Args:
+Conection SSH Args:
 
     prompt_name:
         (REQUIRED when `connection` is `ssh`)
@@ -118,7 +118,7 @@ Connection SSH Args:
         Extra optional arguments used for connecting to switch.
 
     key_accept:
-        Whether or not to accept the host key of the switch on initial login.
+        Wheather or not to accept the host key of the switch on initial login.
         Default: `False`
 
 Connection NXAPI Args:
@@ -162,6 +162,7 @@ the :mod:`salt.modules.nxos<salt.modules.nxos>` execution module.
 """
 
 # Import Python libs
+
 import copy
 import logging
 import multiprocessing

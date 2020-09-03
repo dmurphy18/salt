@@ -235,9 +235,7 @@ def ping():
             return False
     else:
         # other connection modes, like telnet
-        ## return _rpc_file_list(dev)
-        res = _rpc_file_list(dev)
-        return res
+        return _rpc_file_list(dev)
 
 
 def _rpc_file_list(dev):
@@ -283,5 +281,5 @@ def shutdown(opts):
     try:
         thisproxy["conn"].close()
 
-    except Exception as ex:  # pylint: disable=broad-except
+    except Exception:  # pylint: disable=broad-except
         pass

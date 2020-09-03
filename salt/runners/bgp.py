@@ -97,14 +97,16 @@ Configuration
             outputter: yaml
 """
 
+# Import salt lib
 import salt.output
 
+# Import third party libs
 try:
-    from netaddr import IPNetwork
-    from netaddr import IPAddress
+    # pylint: disable=unused-import
+    from napalm.base import helpers as napalm_helpers
+    from netaddr import IPAddress, IPNetwork
 
-    from napalm.base import helpers as napalm_helpers  # pylint: disable=unused-import
-
+    # pylint: enable=unused-import
     HAS_NAPALM = True
 except ImportError:
     HAS_NAPALM = False
@@ -388,12 +390,14 @@ def neighbors(*asns, **kwargs):
                     if "vrf" in display_fields:
                         row["vrf"] = vrf
                     if "connection_stats" in display_fields:
-                        connection_stats = "{state} {active}/{received}/{accepted}/{damped}".format(
-                            state=neighbor.get("connection_state", -1),
-                            active=neighbor.get("active_prefix_count", -1),
-                            received=neighbor.get("received_prefix_count", -1),
-                            accepted=neighbor.get("accepted_prefix_count", -1),
-                            damped=neighbor.get("suppressed_prefix_count", -1),
+                        connection_stats = (
+                            "{state} {active}/{received}/{accepted}/{damped}".format(
+                                state=neighbor.get("connection_state", -1),
+                                active=neighbor.get("active_prefix_count", -1),
+                                received=neighbor.get("received_prefix_count", -1),
+                                accepted=neighbor.get("accepted_prefix_count", -1),
+                                damped=neighbor.get("suppressed_prefix_count", -1),
+                            )
                         )
                         row["connection_stats"] = connection_stats
                     if (

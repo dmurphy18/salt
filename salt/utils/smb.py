@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 Utility functions for SMB connections
 
 :depends: impacket
 """
 
-from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import socket
@@ -22,23 +20,21 @@ log = logging.getLogger(__name__)
 
 try:
     from smbprotocol.connection import Connection
-    from smbprotocol.session import Session
-    from smbprotocol.tree import TreeConnect
-    from smbprotocol.open import (
-        Open,
-        ImpersonationLevel,
-        FilePipePrinterAccessMask,
-        FileAttributes,
-        CreateDisposition,
-        CreateOptions,
-        ShareAccess,
-        DirectoryAccessMask,
-        FileInformationClass,
-    )
     from smbprotocol.create_contexts import (
         CreateContextName,
         SMB2CreateContextRequest,
         SMB2CreateQueryMaximalAccessRequest,
+    )
+    from smbprotocol.open import (
+        CreateDisposition,
+        CreateOptions,
+        DirectoryAccessMask,
+        FileAttributes,
+        FileInformationClass,
+        FilePipePrinterAccessMask,
+        ImpersonationLevel,
+        Open,
+        ShareAccess,
     )
     from smbprotocol.security_descriptor import (
         AccessAllowedAce,
@@ -48,6 +44,8 @@ try:
         SIDPacket,
         SMB2CreateSDBuffer,
     )
+    from smbprotocol.session import Session
+    from smbprotocol.tree import TreeConnect
 
     logging.getLogger("smbprotocol").setLevel(logging.WARNING)
     HAS_SMBPROTOCOL = True
@@ -55,10 +53,10 @@ except ImportError:
     HAS_SMBPROTOCOL = False
 
 
-class SMBProto(object):
+class SMBProto:
     def __init__(self, server, username, password, port=445):
         connection_id = uuid.uuid4()
-        addr = socket.getaddrinfo(server, None, 0, 0, socket.IPPROTO_TCP)[0][4][0]
+        addr = socket.gethostbyname(server)
         self.server = server
         connection = Connection(connection_id, addr, port, require_signing=True)
         self.session = Session(connection, username, password, require_encryption=False)

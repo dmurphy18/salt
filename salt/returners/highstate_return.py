@@ -77,7 +77,7 @@ the time of execution.
 
 """
 
-import html
+import cgi
 import io
 import logging
 import smtplib
@@ -221,7 +221,7 @@ def _generate_html_table(data, out, level=0, extra_style=""):
                                 "td",
                                 [cell_style, second_style, "value", new_extra_style],
                             ),
-                            html.escape(str(value)),
+                            cgi.escape(str(value)),
                         ),
                         file=out,
                     )
@@ -246,7 +246,7 @@ def _generate_html_table(data, out, level=0, extra_style=""):
                     _lookup_style(
                         "td", [cell_style, first_style, "value", extra_style]
                     ),
-                    html.escape(str(subdata)),
+                    cgi.escape(str(subdata)),
                 ),
                 file=out,
             )

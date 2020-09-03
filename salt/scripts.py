@@ -590,9 +590,3 @@ def salt_unity():
         sys.argv.pop(1)
         s_fun = getattr(sys.modules[__name__], "salt_{}".format(cmd))
     s_fun()
-
-
-def salt_shell():
-    from ptpython.repl import embed
-
-    embed(globals(), locals(), vi_mode=False)

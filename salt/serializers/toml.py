@@ -4,13 +4,14 @@
 
     Implements TOML serializer.
 
-    It's just a wrapper around the python toml module.
+    It's just a wrapper around pytoml module.
 """
+
 
 # Import Salt libs
 from salt.serializers import DeserializationError, SerializationError
 
-# Import toml
+# Import pytoml
 try:
     import toml
 
@@ -27,11 +28,11 @@ def deserialize(stream_or_string, **options):
     Deserialize from TOML into Python data structure.
 
     :param stream_or_string: toml stream or string to deserialize.
-    :param options: options given to the python toml module.
+    :param options: options given to lower pytoml module.
     """
 
     try:
-        if not isinstance(stream_or_string, (bytes, str)):
+        if not isinstance(stream_or_string, (bytes, (str,))):
             return toml.load(stream_or_string, **options)
 
         if isinstance(stream_or_string, bytes):
@@ -47,7 +48,7 @@ def serialize(obj, **options):
     Serialize Python data to TOML.
 
     :param obj: the data structure to serialize.
-    :param options: options given to the python toml module.
+    :param options: options given to lower pytoml module.
     """
 
     try:

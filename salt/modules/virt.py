@@ -1,11 +1,7 @@
 """
 Work with virtual machines managed by libvirt
 
-:depends:
-    * libvirt Python module
-    * libvirt client
-    * qemu-img
-    * grep
+:depends: libvirt Python module
 
 Connection
 ==========
@@ -92,21 +88,25 @@ from xml.etree import ElementTree
 from xml.sax import saxutils
 
 # Import third party libs
+import jinja2
 import jinja2.exceptions
 
 # Import salt libs
 import salt.utils.files
 import salt.utils.json
+import salt.utils.network
 import salt.utils.path
 import salt.utils.stringutils
 import salt.utils.templates
-import salt.utils.virt
+import salt.utils.validate.net
+import salt.utils.versions
 import salt.utils.xmlutil as xmlutil
 import salt.utils.yaml
 from salt._compat import ipaddress
 from salt.exceptions import CommandExecutionError, SaltInvocationError
 from salt.ext.six.moves import range  # pylint: disable=import-error,redefined-builtin
 from salt.ext.six.moves.urllib.parse import urlparse, urlunparse
+from salt.utils.virt import check_remote, download_remote
 
 try:
     import libvirt  # pylint: disable=import-error
@@ -612,158 +612,26 @@ def _libvirt_creds():
     return {"user": user, "group": group}
 
 
-def _migrate(dom, dst_uri, **kwargs):
+def _get_migrate_command():
     """
-    Migrate the domain object from its current host to the destination
-    host given by URI.
-
-    :param dom: domain object to migrate
-    :param dst_uri: destination URI
-    :param kwargs:
-        - live:            Use live migration. Defalt value is True.
-        - persistent:      Leave the domain persistent on destination host.
-                           Defalt value is True.
-        - undefinesource:  Undefine the domain on the source host.
-                           Defalt value is True.
-        - offline:         If set to True it will migrate the domain definition
-                           without starting the domain on destination and without
-                           stopping it on source host. Defalt value is False.
-        - max_bandwidth:   The maximum bandwidth (in MiB/s) that will be used.
-        - max_downtime:    Set maximum tolerable downtime for live-migration.
-                           The value represents a number of milliseconds the guest
-                           is allowed to be down at the end of live migration.
-        - parallel_connections: Specify a number of parallel network connections
-                           to be used to send memory pages to the destination host.
-        - compressed:      Activate compression.
-        - comp_methods:    A comma-separated list of compression methods. Supported
-                           methods are "mt" and "xbzrle" and can be  used in any
-                           combination. QEMU defaults to "xbzrle".
-        - comp_mt_level:   Set compression level. Values are in range from 0 to 9,
-                           where 1 is maximum speed and 9 is  maximum compression.
-        - comp_mt_threads: Set number of compress threads on source host.
-        - comp_mt_dthreads: Set number of decompress threads on target host.
-        - comp_xbzrle_cache: Set the size of page cache for xbzrle compression in bytes.
-        - copy_storage:    Migrate non-shared storage. It must be one of the following
-                           values: all (full disk copy) or incremental (Incremental copy)
-        - postcopy:        Enable the use of post-copy migration.
-        - postcopy_bandwidth: The maximum bandwidth allowed in post-copy phase. (MiB/s)
-        - username:        Username to connect with target host
-        - password:        Password to connect with target host
+    Returns the command shared by the different migration types
     """
-    flags = 0
-    params = {}
-    migrated_state = libvirt.VIR_DOMAIN_RUNNING_MIGRATED
-
-    if kwargs.get("live", True):
-        flags |= libvirt.VIR_MIGRATE_LIVE
-
-    if kwargs.get("persistent", True):
-        flags |= libvirt.VIR_MIGRATE_PERSIST_DEST
-
-    if kwargs.get("undefinesource", True):
-        flags |= libvirt.VIR_MIGRATE_UNDEFINE_SOURCE
-
-    max_bandwidth = kwargs.get("max_bandwidth")
-    if max_bandwidth:
-        try:
-            bandwidth_value = int(max_bandwidth)
-        except ValueError:
-            raise SaltInvocationError(
-                "Invalid max_bandwidth value: {}".format(max_bandwidth)
-            )
-        dom.migrateSetMaxSpeed(bandwidth_value)
-
-    max_downtime = kwargs.get("max_downtime")
-    if max_downtime:
-        try:
-            downtime_value = int(max_downtime)
-        except ValueError:
-            raise SaltInvocationError(
-                "Invalid max_downtime value: {}".format(max_downtime)
-            )
-        dom.migrateSetMaxDowntime(downtime_value)
-
-    if kwargs.get("offline") is True:
-        flags |= libvirt.VIR_MIGRATE_OFFLINE
-        migrated_state = libvirt.VIR_DOMAIN_RUNNING_UNPAUSED
-
-    if kwargs.get("compressed") is True:
-        flags |= libvirt.VIR_MIGRATE_COMPRESSED
-
-    comp_methods = kwargs.get("comp_methods")
-    if comp_methods:
-        params[libvirt.VIR_MIGRATE_PARAM_COMPRESSION] = comp_methods.split(",")
-
-    comp_options = {
-        "comp_mt_level": libvirt.VIR_MIGRATE_PARAM_COMPRESSION_MT_LEVEL,
-        "comp_mt_threads": libvirt.VIR_MIGRATE_PARAM_COMPRESSION_MT_THREADS,
-        "comp_mt_dthreads": libvirt.VIR_MIGRATE_PARAM_COMPRESSION_MT_DTHREADS,
-        "comp_xbzrle_cache": libvirt.VIR_MIGRATE_PARAM_COMPRESSION_XBZRLE_CACHE,
-    }
-
-    for (comp_option, param_key) in comp_options.items():
-        comp_option_value = kwargs.get(comp_option)
-        if comp_option_value:
-            try:
-                params[param_key] = int(comp_option_value)
-            except ValueError:
-                raise SaltInvocationError("Invalid {} value".format(comp_option))
-
-    parallel_connections = kwargs.get("parallel_connections")
-    if parallel_connections:
-        try:
-            params[libvirt.VIR_MIGRATE_PARAM_PARALLEL_CONNECTIONS] = int(
-                parallel_connections
-            )
-        except ValueError:
-            raise SaltInvocationError("Invalid parallel_connections value")
-        flags |= libvirt.VIR_MIGRATE_PARALLEL
-
-    if __salt__["config.get"]("virt:tunnel"):
-        if parallel_connections:
-            raise SaltInvocationError(
-                "Parallel migration isn't compatible with tunneled migration"
-            )
-        flags |= libvirt.VIR_MIGRATE_PEER2PEER
-        flags |= libvirt.VIR_MIGRATE_TUNNELLED
-
-    if kwargs.get("postcopy") is True:
-        flags |= libvirt.VIR_MIGRATE_POSTCOPY
-
-    postcopy_bandwidth = kwargs.get("postcopy_bandwidth")
-    if postcopy_bandwidth:
-        try:
-            postcopy_bandwidth_value = int(postcopy_bandwidth)
-        except ValueError:
-            raise SaltInvocationError("Invalid postcopy_bandwidth value")
-        dom.migrateSetMaxSpeed(
-            postcopy_bandwidth_value,
-            flags=libvirt.VIR_DOMAIN_MIGRATE_MAX_SPEED_POSTCOPY,
+    tunnel = __salt__["config.get"]("virt:tunnel")
+    if tunnel:
+        return (
+            "virsh migrate --p2p --tunnelled --live --persistent " "--undefinesource "
         )
+    return "virsh migrate --live --persistent --undefinesource "
 
-    copy_storage = kwargs.get("copy_storage")
-    if copy_storage:
-        if copy_storage == "all":
-            flags |= libvirt.VIR_MIGRATE_NON_SHARED_DISK
-        elif copy_storage in ["inc", "incremental"]:
-            flags |= libvirt.VIR_MIGRATE_NON_SHARED_INC
-        else:
-            raise SaltInvocationError("invalid copy_storage value")
-    try:
-        state = False
-        dst_conn = __get_conn(
-            connection=dst_uri,
-            username=kwargs.get("username"),
-            password=kwargs.get("password"),
-        )
-        new_dom = dom.migrate3(dconn=dst_conn, params=params, flags=flags)
-        if new_dom:
-            state = new_dom.state()
-        dst_conn.close()
-        return state and migrated_state in state
-    except libvirt.libvirtError as err:
-        dst_conn.close()
-        raise CommandExecutionError(err.get_error_message())
+
+def _get_target(target, ssh):
+    """
+    Compute libvirt URL for target migration host.
+    """
+    proto = "qemu"
+    if ssh:
+        proto += "+ssh"
+    return " {}://{}/{}".format(proto, target, "system")
 
 
 def _gen_xml(
@@ -778,7 +646,6 @@ def _gen_xml(
     arch,
     graphics=None,
     boot=None,
-    boot_dev=None,
     **kwargs
 ):
     """
@@ -812,7 +679,12 @@ def _gen_xml(
             graphics = None
     context["graphics"] = graphics
 
-    context["boot_dev"] = boot_dev.split() if boot_dev is not None else ["hd"]
+    if "boot_dev" in kwargs:
+        context["boot_dev"] = []
+        for dev in kwargs["boot_dev"].split():
+            context["boot_dev"].append(dev)
+    else:
+        context["boot_dev"] = ["hd"]
 
     context["boot"] = boot if boot else {}
 
@@ -845,17 +717,15 @@ def _gen_xml(
 
     context["disks"] = []
     disk_bus_map = {"virtio": "vd", "xen": "xvd", "fdc": "fd", "ide": "hd"}
-    targets = []
     for i, disk in enumerate(diskp):
         prefix = disk_bus_map.get(disk["model"], "sd")
         disk_context = {
             "device": disk.get("device", "disk"),
-            "target_dev": _get_disk_target(targets, len(diskp), prefix),
+            "target_dev": "{}{}".format(prefix, string.ascii_lowercase[i]),
             "disk_bus": disk["model"],
             "format": disk.get("format", "raw"),
             "index": str(i),
         }
-        targets.append(disk_context["target_dev"])
         if disk.get("source_file"):
             url = urlparse(disk["source_file"])
             if not url.scheme or not url.hostname:
@@ -1371,7 +1241,7 @@ def _disk_profile(conn, profile, hypervisor, disks, vm_name):
         overlay = {"device": "disk", "model": "virtio"}
     elif hypervisor == "xen":
         overlay = {"device": "disk", "model": "xen"}
-    elif hypervisor == "bhyve":
+    elif hypervisor in ["bhyve"]:
         overlay = {"format": "raw", "model": "virtio", "sparse_volume": False}
     else:
         overlay = {}
@@ -1413,10 +1283,8 @@ def _disk_profile(conn, profile, hypervisor, disks, vm_name):
         if disk.get("source_file") and os.path.exists(disk["source_file"]):
             disk["filename"] = os.path.basename(disk["source_file"])
             if not disk.get("format"):
-                disk["format"] = (
-                    "qcow2" if disk.get("device", "disk") != "cdrom" else "raw"
-                )
-        elif vm_name and disk.get("device", "disk") == "disk":
+                disk["format"] = "qcow2"
+        elif disk.get("device", "disk") == "disk":
             _fill_disk_filename(conn, vm_name, disk, hypervisor, pool_caps)
 
     return disklist
@@ -1451,23 +1319,6 @@ def _fill_disk_filename(conn, vm_name, disk, hypervisor, pool_caps):
             pool_xml = ElementTree.fromstring(pool_obj.XMLDesc())
             pool_type = pool_xml.get("type")
 
-            # Disk pools volume names are partition names, they need to be named based on the device name
-            if pool_type == "disk":
-                device = pool_xml.find("./source/device").get("path")
-                all_volumes = pool_obj.listVolumes()
-                if disk.get("source_file") not in all_volumes:
-                    indexes = [
-                        int(re.sub("[a-z]+", "", vol_name)) for vol_name in all_volumes
-                    ] or [0]
-                    index = min(
-                        [
-                            idx
-                            for idx in range(1, max(indexes) + 2)
-                            if idx not in indexes
-                        ]
-                    )
-                    disk["filename"] = "{}{}".format(os.path.basename(device), index)
-
             # Is the user wanting to reuse an existing volume?
             if disk.get("source_file"):
                 if not disk.get("source_file") in pool_obj.listVolumes():
@@ -1494,6 +1345,18 @@ def _fill_disk_filename(conn, vm_name, disk, hypervisor, pool_caps):
                     disk["format"] = "qcow2"
                 else:
                     disk["format"] = volume_options.get("default_format", None)
+
+            # Disk pools volume names are partition names, they need to be named based on the device name
+            if pool_type == "disk":
+                device = pool_xml.find("./source/device").get("path")
+                indexes = [
+                    int(re.sub("[a-z]+", "", vol_name))
+                    for vol_name in pool_obj.listVolumes()
+                ] or [0]
+                index = min(
+                    [idx for idx in range(1, max(indexes) + 2) if idx not in indexes]
+                )
+                disk["filename"] = "{}{}".format(os.path.basename(device), index)
 
     elif hypervisor == "bhyve" and vm_name:
         disk["filename"] = "{}.{}".format(vm_name, disk["name"])
@@ -1668,15 +1531,13 @@ def _handle_remote_boot_params(orig_boot):
             for key in keys:
                 if key == "efi" and type(orig_boot.get(key)) == bool:
                     new_boot[key] = orig_boot.get(key)
-                elif orig_boot.get(key) is not None and salt.utils.virt.check_remote(
+                elif orig_boot.get(key) is not None and check_remote(
                     orig_boot.get(key)
                 ):
                     if saltinst_dir is None:
                         os.makedirs(CACHE_DIR)
                         saltinst_dir = CACHE_DIR
-                    new_boot[key] = salt.utils.virt.download_remote(
-                        orig_boot.get(key), saltinst_dir
-                    )
+                    new_boot[key] = download_remote(orig_boot.get(key), saltinst_dir)
             return new_boot
         else:
             raise SaltInvocationError(
@@ -1688,10 +1549,10 @@ def _handle_remote_boot_params(orig_boot):
 
 def _handle_efi_param(boot, desc):
     """
-       Checks if boot parameter contains efi boolean value, if so, handles the firmware attribute.
-       :param boot: The boot parameters passed to the init or update functions.
-       :param desc: The XML description of that domain.
-       :return: A boolean value.
+    Checks if boot parameter contains efi boolean value, if so, handles the firmware attribute.
+    :param boot: The boot parameters passed to the init or update functions.
+    :param desc: The XML description of that domain.
+    :return: A boolean value.
     """
     efi_value = boot.get("efi", None) if boot else None
     parent_tag = desc.find("os")
@@ -1735,7 +1596,6 @@ def init(
     os_type=None,
     arch=None,
     boot=None,
-    boot_dev=None,
     **kwargs
 ):
     """
@@ -1819,12 +1679,6 @@ def init(
                 'loader': '/usr/share/OVMF/OVMF_CODE.fd',
                 'nvram': '/usr/share/OVMF/OVMF_VARS.ms.fd'
             }
-
-    :param boot_dev:
-        Space separated list of devices to boot from sorted by decreasing priority.
-        Values can be ``hd``, ``fd``, ``cdrom`` or ``network``.
-
-        By default, the value will ``"hd"``.
 
     .. _init-boot-def:
 
@@ -2040,8 +1894,6 @@ def init(
                     for x in y
                 }
             )
-            if len(hypervisors) == 0:
-                raise SaltInvocationError("No supported hypervisors were found")
             virt_hypervisor = "kvm" if "kvm" in hypervisors else hypervisors[0]
 
         # esxi used to be a possible value for the hypervisor: map it to vmware since it's the same
@@ -2149,7 +2001,6 @@ def init(
             arch,
             graphics,
             boot,
-            boot_dev,
             **kwargs
         )
         conn.defineXML(vm_xml)
@@ -2307,21 +2158,6 @@ def _diff_lists(old, new, comparator):
     return diff
 
 
-def _get_disk_target(targets, disks_count, prefix):
-    """
-    Compute the disk target name for a given prefix.
-
-    :param targets: the list of already computed targets
-    :param disks: the number of disks
-    :param prefix: the prefix of the target name, i.e. "hd"
-    """
-    for i in range(disks_count):
-        ret = "{}{}".format(prefix, string.ascii_lowercase[i])
-        if ret not in targets:
-            return ret
-    return None
-
-
 def _diff_disk_lists(old, new):
     """
     Compare disk definitions to extract the changes and fix target devices
@@ -2338,7 +2174,11 @@ def _diff_disk_lists(old, new):
         target_node = disk.find("target")
         target = target_node.get("dev")
         prefix = [item for item in prefixes if target.startswith(item)][0]
-        new_target = _get_disk_target(targets, len(new), prefix)
+        new_target = [
+            "{}{}".format(prefix, string.ascii_lowercase[i])
+            for i in range(len(new))
+            if "{}{}".format(prefix, string.ascii_lowercase[i]) not in targets
+        ][0]
         target_node.set("dev", new_target)
         targets.append(new_target)
 
@@ -2377,7 +2217,6 @@ def update(
     live=True,
     boot=None,
     test=False,
-    boot_dev=None,
     **kwargs
 ):
     """
@@ -2420,27 +2259,12 @@ def update(
 
         Refer to :ref:`init-boot-def` for the complete boot parameter description.
 
-        To update any boot parameters, specify the new path for each. To remove any boot parameters, pass ``None`` object,
-        for instance: 'kernel': ``None``. To switch back to BIOS boot, specify ('loader': ``None`` and 'nvram': ``None``)
-        or 'efi': ``False``. Please note that ``None`` is mapped to ``null`` in sls file, pass ``null`` in sls file instead.
+        To update any boot parameters, specify the new path for each. To remove any boot parameters,
+        pass a None object, for instance: 'kernel': ``None``.
 
-        SLS file Example:
-
-        .. code-block:: yaml
-
-            - boot:
-                loader: null
-                nvram: null
+        To switch back to BIOS boot, specify ('loader': ``None`` and 'nvram': ``None``)  or 'efi': ``False``
 
         .. versionadded:: 3000
-
-    :param boot_dev:
-        Space separated list of devices to boot from sorted by decreasing priority.
-        Values can be ``hd``, ``fd``, ``cdrom`` or ``network``.
-
-        By default, the value will ``"hd"``.
-
-        .. versionadded:: Magnesium
 
     :param test: run in dry-run mode if set to True
 
@@ -2532,7 +2356,7 @@ def update(
             # If the existing tag is found, but the new value is None
             # remove it. If the existing tag is found, and the new value
             # doesn't match update it. In either case, mark for update.
-            if boot_tag_value is None and boot is not None and parent_tag is not None:
+            if boot_tag_value == "None" and boot is not None and parent_tag is not None:
                 parent_tag.remove(found_tag)
             else:
                 found_tag.text = boot_tag_value
@@ -2571,18 +2395,6 @@ def update(
                 child_tag.set("template", child_tag.text)
                 child_tag.text = None
 
-            need_update = True
-
-    # Check the os/boot tags
-    if boot_dev is not None:
-        boot_nodes = parent_tag.findall("boot")
-        old_boot_devs = [node.get("dev") for node in boot_nodes]
-        new_boot_devs = boot_dev.split()
-        if old_boot_devs != new_boot_devs:
-            for boot_node in boot_nodes:
-                parent_tag.remove(boot_node)
-            for dev in new_boot_devs:
-                ElementTree.SubElement(parent_tag, "boot", attrib={"dev": dev})
             need_update = True
 
     # Update the memory, note that libvirt outputs all memory sizes in KiB
@@ -2673,7 +2485,7 @@ def update(
             new_disks = []
             for new_disk in changes["disk"].get("new", []):
                 device = new_disk.get("device", "disk")
-                if device not in ["cdrom", "floppy"]:
+                if new_disk.get("type") != "file" and device not in ["cdrom", "floppy"]:
                     new_disks.append(new_disk)
                     continue
 
@@ -2681,7 +2493,8 @@ def update(
                 matching = [
                     old_disk
                     for old_disk in changes["disk"].get("deleted", [])
-                    if old_disk.get("device", "disk") == device
+                    if old_disk.get("type") == "file"
+                    and old_disk.get("device", "disk") == device
                     and old_disk.find("target").get("dev") == target_dev
                 ]
                 if not matching:
@@ -2699,13 +2512,15 @@ def update(
                         else None
                     )
 
-                    updated_disk.set("type", "file")
-                    # Detaching device
                     if source_node is not None:
-                        updated_disk.remove(source_node)
-
-                    # Attaching device
-                    if source_file:
+                        if not source_file:
+                            # Detaching device
+                            updated_disk.remove(source_node)
+                        else:
+                            # Changing device
+                            source_node.set("file", source_file)
+                    else:
+                        # Attaching device
                         ElementTree.SubElement(
                             updated_disk, "source", attrib={"file": source_file}
                         )
@@ -3408,12 +3223,13 @@ def get_profiles(hypervisor=None, **kwargs):
     .. code-block:: bash
 
         salt '*' virt.get_profiles
-        salt '*' virt.get_profiles hypervisor=vmware
+        salt '*' virt.get_profiles hypervisor=esxi
     """
+    ret = {}
+
     # Use the machine types as possible values
     # Prefer 'kvm' over the others if available
-    conn = __get_conn(**kwargs)
-    caps = _capabilities(conn)
+    caps = capabilities(**kwargs)
     hypervisors = sorted(
         {
             x
@@ -3421,24 +3237,24 @@ def get_profiles(hypervisor=None, **kwargs):
             for x in y
         }
     )
-    if len(hypervisors) == 0:
-        raise SaltInvocationError("No supported hypervisors were found")
+    default_hypervisor = "kvm" if "kvm" in hypervisors else hypervisors[0]
 
     if not hypervisor:
-        hypervisor = "kvm" if "kvm" in hypervisors else hypervisors[0]
-
-    ret = {
-        "disk": {"default": _disk_profile(conn, "default", hypervisor, [], None)},
-        "nic": {"default": _nic_profile("default", hypervisor)},
-    }
+        hypervisor = default_hypervisor
     virtconf = __salt__["config.get"]("virt", {})
-
-    for profile in virtconf.get("disk", []):
-        ret["disk"][profile] = _disk_profile(conn, profile, hypervisor, [], None)
-
-    for profile in virtconf.get("nic", []):
-        ret["nic"][profile] = _nic_profile(profile, hypervisor)
-
+    for typ in ["disk", "nic"]:
+        _func = getattr(sys.modules[__name__], "_{}_profile".format(typ))
+        ret[typ] = {
+            "default": _func(
+                "default", hypervisor if hypervisor else default_hypervisor
+            )
+        }
+        if typ in virtconf:
+            ret.setdefault(typ, {})
+            for prf in virtconf[typ]:
+                ret[typ][prf] = _func(
+                    prf, hypervisor if hypervisor else default_hypervisor
+                )
     return ret
 
 
@@ -3878,46 +3694,13 @@ def define_vol_xml_path(path, pool=None, **kwargs):
         return False
 
 
-def migrate_non_shared(vm_, target, ssh=False, **kwargs):
+def migrate_non_shared(vm_, target, ssh=False):
     """
     Attempt to execute non-shared storage "all" migration
 
     :param vm_: domain name
     :param target: target libvirt host name
     :param ssh: True to connect over ssh
-
-        .. deprecated:: 3002
-
-    :param kwargs:
-        - live:           Use live migration. Defalt value is True.
-        - persistent:     Leave the domain persistent on destination host.
-                          Defalt value is True.
-        - undefinesource: Undefine the domain on the source host.
-                          Defalt value is True.
-        - offline:        If set to True it will migrate the domain definition
-                          without starting the domain on destination and without
-                          stopping it on source host. Defalt value is False.
-        - max_bandwidth:  The maximum bandwidth (in MiB/s) that will be used.
-        - max_downtime:   Set maximum tolerable downtime for live-migration.
-                          The value represents a number of milliseconds the guest
-                          is allowed to be down at the end of live migration.
-        - parallel_connections: Specify a number of parallel network connections
-                          to be used to send memory pages to the destination host.
-        - compressed:      Activate compression.
-        - comp_methods:    A comma-separated list of compression methods. Supported
-                           methods are "mt" and "xbzrle" and can be  used in any
-                           combination. QEMU defaults to "xbzrle".
-        - comp_mt_level:   Set compression level. Values are in range from 0 to 9,
-                           where 1 is maximum speed and 9 is  maximum compression.
-        - comp_mt_threads: Set number of compress threads on source host.
-        - comp_mt_dthreads: Set number of decompress threads on target host.
-        - comp_xbzrle_cache: Set the size of page cache for xbzrle compression in bytes.
-        - postcopy:        Enable the use of post-copy migration.
-        - postcopy_bandwidth: The maximum bandwidth allowed in post-copy phase. (MiB/s)
-        - username:       Username to connect with target host
-        - password:       Password to connect with target host
-
-        .. versionadded:: 3002
 
     CLI Example:
 
@@ -3936,54 +3719,21 @@ def migrate_non_shared(vm_, target, ssh=False, **kwargs):
     For more details on tunnelled data migrations, report to
     https://libvirt.org/migration.html#transporttunnel
     """
-    salt.utils.versions.warn_until(
-        "Silicon",
-        "The 'migrate_non_shared' feature has been deprecated. "
-        "Use 'migrate' with copy_storage='all' instead.",
+    cmd = (
+        _get_migrate_command() + " --copy-storage-all " + vm_ + _get_target(target, ssh)
     )
-    return migrate(vm_, target, ssh, copy_storage="all", **kwargs)
+
+    stdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
+    return salt.utils.stringutils.to_str(stdout)
 
 
-def migrate_non_shared_inc(vm_, target, ssh=False, **kwargs):
+def migrate_non_shared_inc(vm_, target, ssh=False):
     """
-    Attempt to execute non-shared storage "inc" migration
+    Attempt to execute non-shared storage "all" migration
 
     :param vm_: domain name
     :param target: target libvirt host name
     :param ssh: True to connect over ssh
-
-        .. deprecated:: 3002
-
-    :param kwargs:
-        - live:           Use live migration. Defalt value is True.
-        - persistent:     Leave the domain persistent on destination host.
-                          Defalt value is True.
-        - undefinesource: Undefine the domain on the source host.
-                          Defalt value is True.
-        - offline:        If set to True it will migrate the domain definition
-                          without starting the domain on destination and without
-                          stopping it on source host. Defalt value is False.
-        - max_bandwidth:  The maximum bandwidth (in MiB/s) that will be used.
-        - max_downtime:   Set maximum tolerable downtime for live-migration.
-                          The value represents a number of milliseconds the guest
-                          is allowed to be down at the end of live migration.
-        - parallel_connections: Specify a number of parallel network connections
-                          to be used to send memory pages to the destination host.
-        - compressed:      Activate compression.
-        - comp_methods:    A comma-separated list of compression methods. Supported
-                           methods are "mt" and "xbzrle" and can be  used in any
-                           combination. QEMU defaults to "xbzrle".
-        - comp_mt_level:   Set compression level. Values are in range from 0 to 9,
-                           where 1 is maximum speed and 9 is  maximum compression.
-        - comp_mt_threads: Set number of compress threads on source host.
-        - comp_mt_dthreads: Set number of decompress threads on target host.
-        - comp_xbzrle_cache: Set the size of page cache for xbzrle compression in bytes.
-        - postcopy:        Enable the use of post-copy migration.
-        - postcopy_bandwidth: The maximum bandwidth allowed in post-copy phase. (MiB/s)
-        - username:       Username to connect with target host
-        - password:       Password to connect with target host
-
-        .. versionadded:: 3002
 
     CLI Example:
 
@@ -4002,65 +3752,27 @@ def migrate_non_shared_inc(vm_, target, ssh=False, **kwargs):
     For more details on tunnelled data migrations, report to
     https://libvirt.org/migration.html#transporttunnel
     """
-    salt.utils.versions.warn_until(
-        "Silicon",
-        "The 'migrate_non_shared_inc' feature has been deprecated. "
-        "Use 'migrate' with copy_storage='inc' instead.",
+    cmd = (
+        _get_migrate_command() + " --copy-storage-inc " + vm_ + _get_target(target, ssh)
     )
-    return migrate(vm_, target, ssh, copy_storage="inc", **kwargs)
+
+    stdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
+    return salt.utils.stringutils.to_str(stdout)
 
 
-def migrate(vm_, target, ssh=False, **kwargs):
+def migrate(vm_, target, ssh=False):
     """
     Shared storage migration
 
     :param vm_: domain name
-    :param target: target libvirt URI or host name
+    :param target: target libvirt host name
     :param ssh: True to connect over ssh
-
-       .. deprecated:: 3002
-
-    :param kwargs:
-        - live:            Use live migration. Defalt value is True.
-        - persistent:      Leave the domain persistent on destination host.
-                           Defalt value is True.
-        - undefinesource:  Undefine the domain on the source host.
-                           Defalt value is True.
-        - offline:         If set to True it will migrate the domain definition
-                           without starting the domain on destination and without
-                           stopping it on source host. Defalt value is False.
-        - max_bandwidth:   The maximum bandwidth (in MiB/s) that will be used.
-        - max_downtime:    Set maximum tolerable downtime for live-migration.
-                           The value represents a number of milliseconds the guest
-                           is allowed to be down at the end of live migration.
-        - parallel_connections: Specify a number of parallel network connections
-                           to be used to send memory pages to the destination host.
-        - compressed:      Activate compression.
-        - comp_methods:    A comma-separated list of compression methods. Supported
-                           methods are "mt" and "xbzrle" and can be  used in any
-                           combination. QEMU defaults to "xbzrle".
-        - comp_mt_level:   Set compression level. Values are in range from 0 to 9,
-                           where 1 is maximum speed and 9 is  maximum compression.
-        - comp_mt_threads: Set number of compress threads on source host.
-        - comp_mt_dthreads: Set number of decompress threads on target host.
-        - comp_xbzrle_cache: Set the size of page cache for xbzrle compression in bytes.
-        - copy_storage:    Migrate non-shared storage. It must be one of the following
-                           values: all (full disk copy) or incremental (Incremental copy)
-        - postcopy:        Enable the use of post-copy migration.
-        - postcopy_bandwidth: The maximum bandwidth allowed in post-copy phase. (MiB/s)
-        - username:        Username to connect with target host
-        - password:        Password to connect with target host
-
-        .. versionadded:: 3002
 
     CLI Example:
 
     .. code-block:: bash
 
-        salt '*' virt.migrate <domain> <target hypervisor URI>
-        salt src virt.migrate guest qemu+ssh://dst/system
-        salt src virt.migrate guest qemu+tls://dst/system
-        salt src virt.migrate guest qemu+tcp://dst/system
+        salt '*' virt.migrate <domain> <target hypervisor>
 
     A tunnel data migration can be performed by setting this in the
     configuration:
@@ -4073,51 +3785,10 @@ def migrate(vm_, target, ssh=False, **kwargs):
     For more details on tunnelled data migrations, report to
     https://libvirt.org/migration.html#transporttunnel
     """
+    cmd = _get_migrate_command() + " " + vm_ + _get_target(target, ssh)
 
-    if ssh:
-        salt.utils.versions.warn_until(
-            "Silicon",
-            "The 'ssh' argument has been deprecated and "
-            "will be removed in a future release. "
-            "Use libvirt URI string 'target' instead.",
-        )
-
-    conn = __get_conn()
-    dom = _get_domain(conn, vm_)
-
-    if not urlparse(target).scheme:
-        proto = "qemu"
-        if ssh:
-            proto += "+ssh"
-        dst_uri = "{}://{}/system".format(proto, target)
-    else:
-        dst_uri = target
-
-    ret = _migrate(dom, dst_uri, **kwargs)
-    conn.close()
-    return ret
-
-
-def migrate_start_postcopy(vm_):
-    """
-    Starts post-copy migration. This function has to be called
-    while live migration is in progress and it has been initiated
-    with the `postcopy=True` option.
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' virt.migrate_start_postcopy <domain>
-    """
-    conn = __get_conn()
-    dom = _get_domain(conn, vm_)
-    try:
-        dom.migrateStartPostCopy()
-    except libvirt.libvirtError as err:
-        conn.close()
-        raise CommandExecutionError(err.get_error_message())
-    conn.close()
+    stdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
+    return salt.utils.stringutils.to_str(stdout)
 
 
 def seed_non_shared_migrate(disks, force=False):
@@ -4287,7 +3958,10 @@ def purge(vm_, dirs=False, removables=False, **kwargs):
             directories.add(os.path.dirname(disks[disk]["file"]))
         else:
             # We may have a volume to delete here
-            matcher = re.match("^(?P<pool>[^/]+)/(?P<volume>.*)$", disks[disk]["file"],)
+            matcher = re.match(
+                "^(?P<pool>[^/]+)/(?P<volume>.*)$",
+                disks[disk]["file"],
+            )
             if matcher:
                 pool_name = matcher.group("pool")
                 pool = None
